@@ -6,7 +6,7 @@ import select
 
 
 class Peer(object):
-    def __init__(self, torrent, sock, port=6881):
+    def __init__(self, torrent, port=6881):
 
         LP = '!IB'  # "Length Prefix" (req'd by protocol)
         self.MESSAGE_TYPES = {
@@ -25,27 +25,26 @@ class Peer(object):
             9: ('port', LP + 'BB', 3)
         }
 
-        self.socket = sock
+        self.socket = None
         self.torrent = torrent
+        self.handshake = None
         self.socketsPeers = []
-
-        self.socketRec = socket.socket(
-            socket.AF_INET,
-            socket.SOCK_STREAM
-        )
-        # self.socketRec.bind(('localhost', port))
-        #self.socketRec.listen(5)
 
     def connectToPeer(self, peer, timeout=3):
         ip = peer[0]
         port = peer[1]
 
         try:
-            peerConnection = socket.create_connection((ip, port), timeout)
+            self.socket = socket.create_connection((ip, port), timeout)
             print "connected to peer ip: {} - port: {}".format(ip, port)
-            return peerConnection
+            self.build_handshake()
+            print "handshake created"
+
+            return True
         except:
             pass
+        else:
+            return False
 
     def build_handshake(self):
         """Return formatted message ready for sending to peer:
@@ -53,22 +52,22 @@ class Peer(object):
         """
         pstr = "BitTorrent protocol"
         reserved = "0" * 8
-        handshake = struct.pack("B" + str(len(pstr)) + "s8x20s20s",
+        hs = struct.pack("B" + str(len(pstr)) + "s8x20s20s",
                                 len(pstr),
                                 pstr,
                                 # reserved,
                                 self.torrent.info_hash,
                                 self.torrent.peer_id
                                 )
-        assert len(handshake) == 49 + len(pstr)
-        return handshake
+        assert len(hs) == 49 + len(pstr)
+        self.handshake=hs
 
-    def sendToPeer(self, socket, msg):
-        socket.send(msg)
+    def sendToPeer(self, msg):
+        self.socket.send(msg)
 
     def recv_msg(self):
         pass
-"""
+    """
     def recv_msg(self):
         buf = ""
         peers = []
@@ -97,7 +96,8 @@ class Peer(object):
                     if len(msg) > 0:
                         print self.decodeMessagePeer(buf)
                         # return buf
-"""
+    """
+
     def decodeMessagePeer(self, buf, pstr="BitTorrent protocol"):
         if buf[1:20] == pstr:  # Received handshake
             handshake = buf[:68]
@@ -126,4 +126,3 @@ class Peer(object):
             print(type)
 
         return buf
-
