@@ -2,10 +2,10 @@ __author__ = 'alexisgallepe'
 
 import socket
 import struct
-import select
 
 
 class Peer(object):
+
     def __init__(self, torrent, port=6881):
 
         LP = '!IB'  # "Length Prefix" (req'd by protocol)
@@ -30,7 +30,10 @@ class Peer(object):
         self.handshake = None
         self.socketsPeers = []
 
-    def connectToPeer(self, peer, timeout=3):
+    #def run(self):
+        #self.peerManager()
+
+    def connectToPeer(self, peer, timeout=10):
         ip = peer[0]
         port = peer[1]
 
@@ -38,13 +41,12 @@ class Peer(object):
             self.socket = socket.create_connection((ip, port), timeout)
             print "connected to peer ip: {} - port: {}".format(ip, port)
             self.build_handshake()
-            print "handshake created"
 
             return True
         except:
             pass
-        else:
-            return False
+
+        return False
 
     def build_handshake(self):
         """Return formatted message ready for sending to peer:
@@ -65,64 +67,3 @@ class Peer(object):
     def sendToPeer(self, msg):
         self.socket.send(msg)
 
-    def recv_msg(self):
-        pass
-    """
-    def recv_msg(self):
-        buf = ""
-        peers = []
-
-        while True:
-            try:
-                peers, wlist, xlist = select.select(self.socketsPeers, [], [], 0.05)
-            except Exception, e:
-                print e
-                break
-                pass
-            else:
-                for peer in peers:
-                    # thread managePeer
-                    try:
-                        msg = peer.recv(4096)
-                    except Exception, e:
-                        # print "error rec message peer" #if timeout, not an error
-                        # self.socket.close()
-                        print e
-                        break
-                    else:
-                        if len(msg) == 0: break
-                        buf += msg
-
-                    if len(msg) > 0:
-                        print self.decodeMessagePeer(buf)
-                        # return buf
-    """
-
-    def decodeMessagePeer(self, buf, pstr="BitTorrent protocol"):
-        if buf[1:20] == pstr:  # Received handshake
-            handshake = buf[:68]
-            expected_length, info_dict, info_hash, peer_id = struct.unpack(
-                "B" + str(len(pstr)) + "s8x20s20s",
-                handshake)
-            buf = buf[68:]
-
-            if self.torrent.info_hash == info_hash:
-                interested = struct.pack('!I', 1) + struct.pack('!B', 2)
-                self.sendToPeer(interested)
-                return ('handshake', (info_hash, peer_id)), buf
-            else:
-                return 'error info_hash'
-
-        if len(buf) < 4:
-            raise Exception("Too few bytes to form a protocol message.")
-
-        length = struct.unpack('!I', buf[:4])[0]
-        if length == 0:
-            type = 'keep alive'
-            buf = buf[4:]
-        else:  # data type anything but 'keep alive'
-            print "Trying to parse data"
-            type = self.MESSAGE_TYPES[ord(buf[4])]
-            print(type)
-
-        return buf
