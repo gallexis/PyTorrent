@@ -18,25 +18,25 @@ class PeerManager(Thread):
             buf = ""
             try:
                 peers, wlist, xlist = select.select(p, [], [], 2)
-            except Exception, e:
-                print e
+            except Exception, a:
+                print a
                 break
                 pass
             else:
-                for peer in peers:
-                    # thread managePeer
+                for i in range(len(peers)):
                     try:
-                        msg = peer.recv(4096)
+                        msg = peers[i].recv(4096)
                     except Exception, e:
-                        # print "error rec message peer" #if timeout, not an error
-                        print e
+                        # remove peer disconnected
+                        p.pop(i)
+                        print 'rem'
                         break
                     else:
                         if len(msg) == 0: break
                         buf += msg
 
                     if len(msg) > 0:
-                        self.decodeMessagePeer(buf)
+                        print self.decodeMessagePeer(buf)
                         # return buf
                         pass
 
