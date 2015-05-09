@@ -1,10 +1,11 @@
 #!/usr/local/bin/python
 __author__ = 'alexisgallepe'
 
+import struct
+
 import Torrent
 import Tracker
 import Peer
-import struct
 import PeersManager
 
 
@@ -28,7 +29,7 @@ if __name__ == '__main__':
         if p.connectToPeer(peer):
             peers.append(p)
 
-    p = PeersManager.PeerManager(peers,t)
+    p = PeersManager.PeerManager(peers, t)
     p.start()
 
     for p in peers:

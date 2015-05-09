@@ -1,7 +1,9 @@
 __author__ = 'alexisgallepe'
 
-import bencode
 import time
+
+import bencode
+
 from utils import sha1_hash
 
 

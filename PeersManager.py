@@ -1,13 +1,15 @@
 __author__ = 'alexisgallepe'
 
-import select, struct
+import select
+import struct
 from threading import Thread
 
+
 class PeerManager(Thread):
-    def __init__(self, lstPeers,torrent):
+    def __init__(self, lstPeers, torrent):
         Thread.__init__(self)
         self.lstPeers = lstPeers
-        self.torrent=torrent
+        self.torrent = torrent
 
     def run(self):
         buf = ""

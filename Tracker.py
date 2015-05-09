@@ -3,10 +3,11 @@ __author__ = 'alexisgallepe'
 import bencode
 import requests
 
+
 class Tracker(object):
     def __init__(self, torrent):
         self.torrent = torrent
-        self.listPeers=[]
+        self.listPeers = []
 
     def getPeersFromTrackers(self):
         for tracker in self.torrent.announceList:
@@ -16,7 +17,7 @@ class Tracker(object):
                 except:
                     pass
 
-        if len(self.listPeers)<=0: print "Error, no peer available"
+        if len(self.listPeers) <= 0: print "Error, no peer available"
         return self.listPeers
 
     def getPeersFromTracker(self, tracker):

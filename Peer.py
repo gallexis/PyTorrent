@@ -5,7 +5,6 @@ import struct
 
 
 class Peer(object):
-
     def __init__(self, torrent, port=6881):
 
         LP = '!IB'  # "Length Prefix" (req'd by protocol)
@@ -30,7 +29,7 @@ class Peer(object):
         self.handshake = None
         self.socketsPeers = []
 
-    #def run(self):
+        # def run(self):
         #self.peerManager()
 
     def connectToPeer(self, peer, timeout=10):
@@ -55,14 +54,14 @@ class Peer(object):
         pstr = "BitTorrent protocol"
         reserved = "0" * 8
         hs = struct.pack("B" + str(len(pstr)) + "s8x20s20s",
-                                len(pstr),
-                                pstr,
-                                # reserved,
-                                self.torrent.info_hash,
-                                self.torrent.peer_id
-                                )
+                         len(pstr),
+                         pstr,
+                         # reserved,
+                         self.torrent.info_hash,
+                         self.torrent.peer_id
+                         )
         assert len(hs) == 49 + len(pstr)
-        self.handshake=hs
+        self.handshake = hs
 
     def sendToPeer(self, msg):
         self.socket.send(msg)
