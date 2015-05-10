@@ -33,9 +33,11 @@ if __name__ == '__main__':
     p.start()
 
     for p in peers:
-        p.sendToPeer(p.handshake)
-        interested = struct.pack('!I', 1) + struct.pack('!B', 2)
-        p.sendToPeer(interested)
-        print "handshake sent"
+        try:
+            p.sendToPeer(p.handshake)
+            interested = struct.pack('!I', 1) + struct.pack('!B', 2)
+            p.sendToPeer(interested)
+            print "handshake sent"
 
-
+        except:
+            pass

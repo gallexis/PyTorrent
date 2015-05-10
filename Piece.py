@@ -14,6 +14,7 @@ class Piece(object):
         self.pieceSize = pieceSize
         self.pieceHash = pieceHash
         self.finished = False
+        self.pieceData = b""
         self.num_blocks = int(math.ceil(float(pieceSize) / BLOCK_SIZE))
         # self.blockTracker = BitArray(self.num_blocks)
         self.blocks = self.initBlocks()
@@ -23,12 +24,12 @@ class Piece(object):
 
         # block -> (    Statut_Block    ,BLOCK_SIZE,data)
         #            (Free|Pending|Full)      1      2
-        blocks = [["Free", BLOCK_SIZE, ""]] * (self.num_blocks - 1)
+        blocks = [["Free", BLOCK_SIZE, b""]] * (self.num_blocks - 1)
         # size of last block
-        blocks[self.num_blocks] = ["Free", int(float(self.pieceSize) % BLOCK_SIZE), ""]
+        blocks[self.num_blocks] = ["Free", int(float(self.pieceSize) % BLOCK_SIZE), b""]
         return blocks
 
-    def add_datas(self, offset, data):
+    def setBlock(self, offset, data):
         if offset == 0:
             index = 0
         else:
@@ -55,19 +56,25 @@ class Piece(object):
                 return False
 
         # Before returning True, we must check if hashes matches
-        return self.isHashPieceCorrect()
+        data = self.assembleDatas()
+        if self.isHashPieceCorrect(data):
+            self.pieceData = data
+            return True
+        else:
+            return False
 
-    def isHashPieceCorrect(self):
+    def assembleDatas(self):
         buf = ""
         for block in self.blocks:
             buf += block[2]
+        return buf
 
-        if utils.sha1_hash(buf) == self.pieceHash:
+    def isHashPieceCorrect(self,data):
+        if utils.sha1_hash(data) == self.pieceHash:
             return True
         else:
             print "error Piece Hash "
-            print utils.sha1_hash(buf)
+            print utils.sha1_hash(data)
             print self.pieceHash
             self.blocks = self.initBlocks()
             return False
-
