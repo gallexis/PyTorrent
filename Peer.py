@@ -8,7 +8,7 @@ class Peer(object):
     def __init__(self, torrent, port=6881):
 
         self.handshake = None
-        self.hasHanshaked = False
+        self.hasHandshaked = False
         self.buffer = b""
         self.state = {
             'am_choking': True,
@@ -79,40 +79,41 @@ class Peer(object):
                 handshake)
 
             if self.torrent.info_hash == info_hash:
-                self.hasHandshake = True
+                self.hasHandshaked = True
                 print ('handshake', (info_hash, peer_id)), buf
             else:
                 print 'error info_hash'
-            self.buffer = b""
 
+            self.buffer = self.buffer[28 +len(info_hash)+20:]
+                                    # HEADER_SIZE
 
     def keep_alive(self, message_bytes):
         keep_alive = struct.unpack("!I", message_bytes[:4])[0]
         if keep_alive == 0:
             print('KEEP ALIVE')
-            self.buffer = b""
             return True
 
         return False
 
 
     def choke(self, message_bytes):
-        self.buffer = b""
+        print "choke"
         self.state['peer_choking'] = True
 
 
     def unchoke(self, message_bytes):
         self.buffer = b""
+        print "unchoke"
         self.state['peer_choking'] = False
 
 
     def interested(self, message_bytes):
-        self.buffer = b""
+        print "interested"
         self.state['peer_interested'] = True
 
 
     def not_interested(self, message_bytes):
-        self.buffer = b""
+        print "not interested"
         self.state['peer_interested'] = False
 
 
@@ -120,9 +121,8 @@ class Peer(object):
         '''	Have message is the index of a piece the peer has. Updates
             peer.has_pieces.
         '''
-        piece_index = int.from_bytes(message_bytes, byteorder='big')
-        self.has_pieces[piece_index] = True
-        self.buffer = b""
+        #self.has_pieces[piece_index] = True
+        pass
 
 
     def bitfield(self, message_bytes):
@@ -132,8 +132,7 @@ class Peer(object):
         bitstring = ''.join('{0:08b}'.format(byte) for byte in message_bytes)
         self.has_pieces = [bool(int(c)) for c in bitstring]
         # print('PEER HAS PIECES:', self.has_pieces)
-        self.torrent.pieces_changed_callback(self)
-        self.buffer = b""
+        pass
 
 
     def request(self, message_bytes):
@@ -141,7 +140,7 @@ class Peer(object):
         piece_offset = message_bytes[4:8]
         length = message_bytes[8:]
         # request: <len=0013><id=6><index><begin><length>
-        self.buffer = b""
+        pass
 
 
     def piece(self, message_bytes):
@@ -152,39 +151,21 @@ class Peer(object):
         piece_begins = message_bytes[4:8]
         piece = message_bytes[8:]
         self.torrent.check_piece_callback(piece, piece_index, self)
-        self.buffer = b""
+        pass
 
         # piece: <len=0009+X><id=7><index><begin><block>,
 
 
     def cancel(self, message_bytes):
-        self.buffer = b""
         pass
         # cancel: <len=0013><id=8><index><begin><length>,
 
 
     def port(self, message_bytes):
         print('HELP! I HAVE A PORT REQUEST!!!!!')
-        self.buffer = b""
         pass
         # port: <len=0003><id=9><listen-port>
 
 
     def construct_payload(self, message_id):
-        self.buffer = b""
         pass
-
-
-    def construct_message(self, message_id, payload_bytes=b''):
-        '''messages in the protocol take the form of
-        <length prefix><message ID><payload>. The length prefix is a four byte
-        big-endian value. The message ID is a single decimal byte.
-        The payload is message dependent.
-        '''
-        # print('CONSTRUCTING MESSAGE')
-        length_bytes = (1 + len(payload_bytes)).to_bytes(4, byteorder='big')
-        message_id_bytes = message_id.to_bytes(1, byteorder='big')
-        elements = [length_bytes, message_id_bytes, payload_bytes]
-        message_bytes = b''.join(elements)
-        self.buffer = b""
-        return message_bytes

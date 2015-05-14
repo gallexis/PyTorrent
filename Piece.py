@@ -64,7 +64,7 @@ class Piece(object):
             return False
 
     def assembleDatas(self):
-        buf = ""
+        buf = b""
         for block in self.blocks:
             buf += block[2]
         return buf

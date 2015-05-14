@@ -17,11 +17,10 @@ if __name__ == '__main__':
     tk = Tracker.Tracker(t)
 
     peersLst = tk.getPeersFromTrackers()
-    while peersLst.__sizeof__() == 0:
-        print peersLst.__sizeof__()
+    while len(peersLst) == 0:
         peersLst = tk.getPeersFromTrackers()
 
-    peersLst = peersLst[:8]
+    peersLst = peersLst[:10]
     print "get peers from tracker"
 
     for peer in peersLst:
