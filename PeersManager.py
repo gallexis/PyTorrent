@@ -3,7 +3,7 @@ __author__ = 'alexisgallepe'
 import select
 import struct
 from threading import Thread
-
+from libs import utils
 
 class PeersManager(Thread):
     def __init__(self, torrent):
@@ -12,18 +12,17 @@ class PeersManager(Thread):
         self.torrent = torrent
 
     def run(self):
-
         while True:
             self.startConnectionToPeers()
             read = [p.socket for p in self.peers]
-            readList, _, _ = select.select(read, [], [], 2)
+            write = [p.socket for p in self.peers if p.writeBuffer != ""]
+            readList, writeList, _ = select.select(read, write, [], 2)
 
-            for socket in readList:          # !! socket != peer !!
+            for socket in readList:
+                peer = self.getPeerBySocket(socket)
                 try:
-                    peer = self.getPeerBySocket(socket)
                     msg = socket.recv(1024)
-                except Exception, e:
-                    print e
+                except:
                     self.removePeer(peer)
                     continue
 
@@ -31,8 +30,16 @@ class PeersManager(Thread):
                     self.removePeer(peer)
                     continue
 
-                peer.receiveBuffer += msg
+                peer.readBuffer += msg
                 self.manageMessageReceived(peer)
+
+            for socket in writeList:
+                peer = self.getPeerBySocket(socket)
+                try:
+                    peer.sendToPeer(peer.writeBuffer)
+                except:
+                    self.removePeer(peer)
+                    continue
 
     def startConnectionToPeers(self):
         for peer in self.peers:
@@ -68,80 +75,55 @@ class PeersManager(Thread):
 
 
     def manageMessageReceived(self, peer):
-        while len(peer.receiveBuffer) > 3:
+        while len(peer.readBuffer) > 3:
             if peer.hasHandshaked == False:
-                peer.checkHandshake(peer.receiveBuffer)
+                peer.checkHandshake(peer.readBuffer)
                 return
 
-            msgLength = self.convertBytesToDecimal(peer.receiveBuffer[0:4], 3)
+            msgLength = utils.convertBytesToDecimal(peer.readBuffer[0:4], 3)
 
-            if len(peer.receiveBuffer) == 4:
+            if len(peer.readBuffer) == 4:
                 if msgLength == '\x00\x00\x00\x00':
                     print 'Keep alive'
                     return True
                 print 'Keep alive2'
                 return True
 
-            msgCode = int(ord(peer.receiveBuffer[4:5]))
-            payload = peer.receiveBuffer[5:4 + msgLength]
+            msgCode = int(ord(peer.readBuffer[4:5]))
+            payload = peer.readBuffer[5:4 + msgLength]
 
             if len(payload) < msgLength - 1:
                 # Message is not complete. Return
                 print msgLength - 1
                 return True
 
-            peer.receiveBuffer = peer.receiveBuffer[msgLength + 4:]
+            peer.readBuffer = peer.readBuffer[msgLength + 4:]
 
             if not msgCode:
                 # Keep Alive. Keep the connection alive.
                 print 'ka'
-                continue
 
             elif msgCode == 0:
-                # Choked
-                # peer.choke()
-                print 'chok'
-                continue
+                peer.choke()
 
             elif msgCode == 1:
-                # peer.unchoke()
-                #pipeRequests(peer, peerMngr)
-                print 'unch'
-                continue
+                peer.unchoke()
 
             elif msgCode == 4:
-                # handleHave(peer, payload)
-                print "have"
-                continue
+                peer.have(payload)
 
             elif msgCode == 5:
-                # peer.setBitField(payload)
-                print "bitfield"
-                continue
+                peer.bitfield(payload)
 
             elif msgCode == 7:
-                # Piece
-                print "piece"
-                continue
+                peer.piece(payload)
 
             elif msgCode == 8:
-                # Cancel
-                print "Cancel"
-                continue
+                peer.cancel(payload)
 
             elif msgCode == 9:
-                # Port
-                print "port"
-                continue
+                peer.port(payload)
 
             else:
                 print "else"
                 return
-
-
-    def convertBytesToDecimal(self, headerBytes, power):
-        size = 0
-        for ch in headerBytes:
-            size += int(ord(ch)) * 256 ** power
-            power -= 1
-        return size

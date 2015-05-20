@@ -9,8 +9,8 @@ class Peer(object):
 
         self.handshake = None
         self.hasHandshaked = False
-        self.receiveBuffer = b""
-        self.sendBuffer = b""
+        self.readBuffer = b""
+        self.writeBuffer = b""
         self.state = {
             'am_choking': True,
             'am_interested': False,
@@ -84,7 +84,7 @@ class Peer(object):
             else:
                 print 'error info_hash'
 
-            self.receiveBuffer = self.receiveBuffer[28 +len(info_hash)+20:]
+            self.readBuffer = self.readBuffer[28 +len(info_hash)+20:]
                                                      # HEADER_SIZE
 
     def keep_alive(self, message_bytes):
@@ -96,22 +96,22 @@ class Peer(object):
         return False
 
 
-    def choke(self, message_bytes):
+    def choke(self):
         print "choke"
         self.state['peer_choking'] = True
 
 
-    def unchoke(self, message_bytes):
+    def unchoke(self):
         print "unchoke"
         self.state['peer_choking'] = False
 
 
-    def interested(self, message_bytes):
+    def interested(self):
         print "interested"
         self.state['peer_interested'] = True
 
 
-    def not_interested(self, message_bytes):
+    def not_interested(self):
         print "not interested"
         self.state['peer_interested'] = False
 
@@ -121,6 +121,7 @@ class Peer(object):
             peer.has_pieces.
         '''
         #self.has_pieces[piece_index] = True
+        print "have"
         pass
 
 
@@ -128,9 +129,7 @@ class Peer(object):
         ''' formats each byte into binary and updates peer.has_pieces list
             appropriately.
         '''
-        bitstring = ''.join('{0:08b}'.format(byte) for byte in message_bytes)
-        self.has_pieces = [bool(int(c)) for c in bitstring]
-        # print('PEER HAS PIECES:', self.has_pieces)
+        print "bitfield"
         pass
 
 
@@ -138,6 +137,7 @@ class Peer(object):
         index = message_bytes[:4]
         piece_offset = message_bytes[4:8]
         length = message_bytes[8:]
+        print "request"
         # request: <len=0013><id=6><index><begin><length>
         pass
 
@@ -149,13 +149,14 @@ class Peer(object):
         piece_index = message_bytes[:4]
         piece_begins = message_bytes[4:8]
         piece = message_bytes[8:]
-        self.torrent.check_piece_callback(piece, piece_index, self)
+        print "piece"
         pass
 
         # piece: <len=0009+X><id=7><index><begin><block>,
 
 
     def cancel(self, message_bytes):
+        print "cancel"
         pass
         # cancel: <len=0013><id=8><index><begin><length>,
 
@@ -164,7 +165,3 @@ class Peer(object):
         print('HELP! I HAVE A PORT REQUEST!!!!!')
         pass
         # port: <len=0003><id=9><listen-port>
-
-
-    def construct_payload(self, message_id):
-        pass

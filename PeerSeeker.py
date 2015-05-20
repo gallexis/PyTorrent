@@ -6,7 +6,7 @@ from threading import Thread
 from pubsub import pub
 
 
-class NewPeersChecker(Thread):
+class PeerSeeker(Thread):
     def __init__(self, tracker, torrent):
         Thread.__init__(self)
         self.tracker = tracker
