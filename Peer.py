@@ -5,11 +5,12 @@ import struct
 
 
 class Peer(object):
-    def __init__(self, torrent, port=6881):
+    def __init__(self, torrent,ip, port=6881):
 
         self.handshake = None
         self.hasHandshaked = False
-        self.buffer = b""
+        self.receiveBuffer = b""
+        self.sendBuffer = b""
         self.state = {
             'am_choking': True,
             'am_interested': False,
@@ -31,19 +32,18 @@ class Peer(object):
         }
 
         self.socket = None
+        self.ip = ip
+        self.port = port
         self.torrent = torrent
         self.socketsPeers = []
 
         # def run(self):
         #self.peerManager()
 
-    def connectToPeer(self, peer, timeout=10):
-        ip = peer[0]
-        port = peer[1]
-
+    def connectToPeer(self, timeout=10):
         try:
-            self.socket = socket.create_connection((ip, port), timeout)
-            print "connected to peer ip: {} - port: {}".format(ip, port)
+            self.socket = socket.create_connection((self.ip, self.port), timeout)
+            print "connected to peer ip: {} - port: {}".format(self.ip, self.port)
             self.build_handshake()
 
             return True
@@ -84,8 +84,8 @@ class Peer(object):
             else:
                 print 'error info_hash'
 
-            self.buffer = self.buffer[28 +len(info_hash)+20:]
-                                    # HEADER_SIZE
+            self.receiveBuffer = self.receiveBuffer[28 +len(info_hash)+20:]
+                                                     # HEADER_SIZE
 
     def keep_alive(self, message_bytes):
         keep_alive = struct.unpack("!I", message_bytes[:4])[0]
@@ -102,7 +102,6 @@ class Peer(object):
 
 
     def unchoke(self, message_bytes):
-        self.buffer = b""
         print "unchoke"
         self.state['peer_choking'] = False
 

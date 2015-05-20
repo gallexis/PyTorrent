@@ -5,38 +5,24 @@ import struct
 
 import Torrent
 import Tracker
-import Peer
+from pubsub import pub
 import PeersManager
+import NewPeersChecker
 
 
 if __name__ == '__main__':
 
-    peers = []
+    torrent = Torrent.Torrent("w.torrent")
+    tk = Tracker.Tracker(torrent)
+    peerMngr = PeersManager.PeersManager(torrent)
+    pc = NewPeersChecker.NewPeersChecker(tk, torrent)
 
-    t = Torrent.Torrent("w.torrent")
-    tk = Tracker.Tracker(t)
+    pub.subscribe(peerMngr.addPeer, 'newPeer')
 
-    peersLst = tk.getPeersFromTrackers()
-    while len(peersLst) == 0:
-        peersLst = tk.getPeersFromTrackers()
 
-    peersLst = peersLst[:10]
-    print "get peers from tracker"
 
-    for peer in peersLst:
-        p = Peer.Peer(t)
-        if p.connectToPeer(peer):
-            peers.append(p)
+    print "start mngr"
+    peerMngr.start()
 
-    p = PeersManager.PeerManager(peers, t)
-    p.start()
-
-    for p in peers:
-        try:
-            p.sendToPeer(p.handshake)
-            interested = struct.pack('!I', 1) + struct.pack('!B', 2)
-            p.sendToPeer(interested)
-            print "handshake sent"
-
-        except:
-            pass
+    print "start PeerChecker"
+    pc.start()

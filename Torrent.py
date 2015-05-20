@@ -4,7 +4,7 @@ import time
 
 import bencode
 
-from utils import sha1_hash
+from libs.utils import sha1_hash
 
 
 class Torrent(object):

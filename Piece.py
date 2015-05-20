@@ -2,8 +2,7 @@ __author__ = 'alexisgallepe'
 
 import math
 
-import utils
-
+from libs import utils
 
 BLOCK_SIZE = 2 ** 14
 
