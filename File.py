@@ -4,10 +4,12 @@ import Piece
 
 
 class File(object):
-    def __init__(self, torrent, nameFile):
+    def __init__(self, torrent, fileName, peerManager):
         self.torrent = torrent
-        self.nameFile = nameFile
-        self.completeFile = False
+        self.fileName = fileName
+        self.peerManager = peerManager
+
+        self.fileCompleted = False
 
         if torrent.length % torrent.pieceLength == 0:
             self.numberOfPieces = torrent.length / torrent.pieceLength
@@ -15,7 +17,6 @@ class File(object):
             self.numberOfPieces = (torrent.length / torrent.pieceLength) + 1
 
         self.pieces = self.generatePieces()
-        self.createFile()
 
     def generatePieces(self, pieces=None):
         pieces = []
@@ -27,16 +28,28 @@ class File(object):
         return pieces
 
     def createFile(self):
-        open(self.nameFile, "wb")
+        fd = open(self.fileName, "wb")
+        data = b""
+        for piece in self.pieces:
+            data += piece.assembleData()
 
-    def fileCompleted(self):
+        fd.write(data)
+
+    def isFileCompleted(self):
         for piece in self.pieces:
             if not piece.isComplete():
                 return False
 
-        self.completeFile = True
+        self.fileCompleted = True
+        self.createFile()
+        print "file completed"
         return True
 
-    def piecesManager(self):
-        while not self.fileCompleted():
-            pass
+    def doAction(self):
+        if not self.fileCompleted:
+            # pseudo code
+            emptyBlock,piece = self.getBlock()
+            block = self.peerManager.askForBlock(emptyBlock)
+            piece.setBlock(block) # error in args
+
+            self.isFileCompleted()

@@ -18,6 +18,7 @@ class PeersManager(Thread):
             write = [p.socket for p in self.peers if p.writeBuffer != ""]
             readList, writeList, _ = select.select(read, write, [], 2)
 
+            # Receive from peers
             for socket in readList:
                 peer = self.getPeerBySocket(socket)
                 try:
@@ -33,6 +34,7 @@ class PeersManager(Thread):
                 peer.readBuffer += msg
                 self.manageMessageReceived(peer)
 
+            # Send to peers
             for socket in writeList:
                 peer = self.getPeerBySocket(socket)
                 try:
@@ -49,11 +51,9 @@ class PeersManager(Thread):
                     interested = struct.pack('!I', 1) + struct.pack('!B', 2)
                     peer.sendToPeer(interested)
                 except:
-                    print 'err startConnectionToPeers'
                     self.removePeer(peer)
 
     def addPeer(self, peer):
-        print "addPeer"
         self.peers.append(peer)
 
     def removePeer(self, peer):
@@ -73,7 +73,6 @@ class PeersManager(Thread):
 
         raise("peer not present in PeerList")
 
-
     def manageMessageReceived(self, peer):
         while len(peer.readBuffer) > 3:
             if peer.hasHandshaked == False:
@@ -82,26 +81,21 @@ class PeersManager(Thread):
 
             msgLength = utils.convertBytesToDecimal(peer.readBuffer[0:4], 3)
 
-            if len(peer.readBuffer) == 4:
-                if msgLength == '\x00\x00\x00\x00':
-                    print 'Keep alive'
-                    return True
-                print 'Keep alive2'
-                return True
+            # handle keep alive
+            peer.keep_alive(peer.readBuffer)
 
             msgCode = int(ord(peer.readBuffer[4:5]))
             payload = peer.readBuffer[5:4 + msgLength]
 
+            # Message is not complete. Return
             if len(payload) < msgLength - 1:
-                # Message is not complete. Return
                 print msgLength - 1
-                return True
+                return
 
             peer.readBuffer = peer.readBuffer[msgLength + 4:]
 
             if not msgCode:
-                # Keep Alive. Keep the connection alive.
-                print 'ka'
+                print 'keep alive'
 
             elif msgCode == 0:
                 peer.choke()

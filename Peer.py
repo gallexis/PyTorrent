@@ -91,9 +91,6 @@ class Peer(object):
         keep_alive = struct.unpack("!I", message_bytes[:4])[0]
         if keep_alive == 0:
             print('KEEP ALIVE')
-            return True
-
-        return False
 
 
     def choke(self):
@@ -105,16 +102,13 @@ class Peer(object):
         print "unchoke"
         self.state['peer_choking'] = False
 
-
     def interested(self):
         print "interested"
         self.state['peer_interested'] = True
 
-
     def not_interested(self):
         print "not interested"
         self.state['peer_interested'] = False
-
 
     def have(self, message_bytes):
         '''	Have message is the index of a piece the peer has. Updates

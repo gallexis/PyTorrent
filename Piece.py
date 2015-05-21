@@ -18,9 +18,9 @@ class Piece(object):
         # self.blockTracker = BitArray(self.num_blocks)
         self.blocks = self.initBlocks()
 
+    # TODO : add timestamp for pending blocks
     def initBlocks(self):
         print "init Blocks"
-
         # block -> (    Statut_Block    ,BLOCK_SIZE,data)
         #            (Free|Pending|Full)      1      2
         blocks = [["Free", BLOCK_SIZE, b""]] * (self.num_blocks - 1)
@@ -55,14 +55,14 @@ class Piece(object):
                 return False
 
         # Before returning True, we must check if hashes matches
-        data = self.assembleDatas()
+        data = self.assembleData()
         if self.isHashPieceCorrect(data):
             self.pieceData = data
             return True
         else:
             return False
 
-    def assembleDatas(self):
+    def assembleData(self):
         buf = b""
         for block in self.blocks:
             buf += block[2]

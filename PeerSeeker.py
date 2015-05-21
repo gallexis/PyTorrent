@@ -14,17 +14,14 @@ class PeerSeeker(Thread):
         self.peerFailed = [("","")]
 
     def run(self):
-
         while True:
-            # if peerConnected == 50 sleep 50 secondes
+            # TODO : if peerConnected == 50 sleep 50 secondes
             peers = self.tracker.getPeersFromTrackers()
             for peer in peers:
                 if not (peer[0],peer[1]) in self.peerFailed:
-                    #self.peerList.append((peer[0],peer[1]))
                     p = Peer.Peer(self.torrent,peer[0],peer[1])
                     if not p.connectToPeer(3):
                         self.peerFailed.append((peer[0],peer[1]))
-                        # be careful, must empty list sometimes
                     else:
                         pub.sendMessage('newPeer',peer=p)
 
