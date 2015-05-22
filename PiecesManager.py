@@ -1,15 +1,16 @@
 __author__ = 'alexisgallepe'
 
 import Piece
+from threading import Thread
+from pubsub import pub
 
-
-class File(object):
-    def __init__(self, torrent, fileName, peerManager):
+class PiecesManager(Thread):
+    def __init__(self, torrent, peersManager):
+        Thread.__init__(self)
         self.torrent = torrent
-        self.fileName = fileName
-        self.peerManager = peerManager
+        self.peersManager = peersManager
 
-        self.fileCompleted = False
+        self.piecesCompleted = False
 
         if torrent.length % torrent.pieceLength == 0:
             self.numberOfPieces = torrent.length / torrent.pieceLength
@@ -17,6 +18,25 @@ class File(object):
             self.numberOfPieces = (torrent.length / torrent.pieceLength) + 1
 
         self.pieces = self.generatePieces()
+
+        # Create events
+        pub.subscribe(self.receiveBlockPiece, 'event.Piece')
+        pub.subscribe(self.receiveBlockPiece, 'event.PeerRequestsPiece')
+
+    def run(self):
+        while not self.piecesCompleted:
+            # pseudo code
+            self.peersManager.askForBlock(emptyBlock)
+
+            self.arePiecesCompleted()
+
+    def receiveBlockPiece(self,piece):
+        piece_index,piece_offset,piece_data = piece
+        self.pieces[piece_index].setBlock(piece_offset,piece_data)
+
+    def handlePeerRequests(self,piece):
+        piece_index,piece_offset,piece_data = piece
+
 
     def generatePieces(self, pieces=None):
         pieces = []
@@ -27,6 +47,7 @@ class File(object):
 
         return pieces
 
+    """
     def createFile(self):
         fd = open(self.fileName, "wb")
         data = b""
@@ -34,22 +55,15 @@ class File(object):
             data += piece.assembleData()
 
         fd.write(data)
+    """
 
-    def isFileCompleted(self):
+    def arePiecesCompleted(self):
         for piece in self.pieces:
             if not piece.isComplete():
                 return False
 
-        self.fileCompleted = True
-        self.createFile()
+        self.piecesCompleted = True
+        #self.createFile()
         print "file completed"
         return True
 
-    def doAction(self):
-        if not self.fileCompleted:
-            # pseudo code
-            emptyBlock,piece = self.getBlock()
-            block = self.peerManager.askForBlock(emptyBlock)
-            piece.setBlock(block) # error in args
-
-            self.isFileCompleted()

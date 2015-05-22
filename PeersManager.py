@@ -4,12 +4,16 @@ import select
 import struct
 from threading import Thread
 from libs import utils
+from pubsub import pub
 
 class PeersManager(Thread):
     def __init__(self, torrent):
         Thread.__init__(self)
         self.peers = []
         self.torrent = torrent
+
+        # Events
+        pub.subscribe(self.addPeer, 'event.newPeer')
 
     def run(self):
         while True:
@@ -73,6 +77,14 @@ class PeersManager(Thread):
 
         raise("peer not present in PeerList")
 
+    def askPeerForBlock(self):
+        for peer in self.peers:
+
+
+
+        pass
+
+
     def manageMessageReceived(self, peer):
         while len(peer.readBuffer) > 3:
             if peer.hasHandshaked == False:
@@ -116,7 +128,7 @@ class PeersManager(Thread):
                 peer.cancel(payload)
 
             elif msgCode == 9:
-                peer.port(payload)
+                peer.portRequest(payload)
 
             else:
                 print "else"

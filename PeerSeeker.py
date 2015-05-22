@@ -15,7 +15,7 @@ class PeerSeeker(Thread):
 
     def run(self):
         while True:
-            # TODO : if peerConnected == 50 sleep 50 secondes
+            # TODO : if peerConnected == 50 sleep 50 secondes by adding new event, start,stop,slow ...
             peers = self.tracker.getPeersFromTrackers()
             for peer in peers:
                 if not (peer[0],peer[1]) in self.peerFailed:
@@ -23,7 +23,7 @@ class PeerSeeker(Thread):
                     if not p.connectToPeer(3):
                         self.peerFailed.append((peer[0],peer[1]))
                     else:
-                        pub.sendMessage('newPeer',peer=p)
+                        pub.sendMessage('event.newPeer',peer=p)
 
             print self.peerFailed
             time.sleep(10000)

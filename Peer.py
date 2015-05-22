@@ -2,13 +2,16 @@ __author__ = 'alexisgallepe'
 
 import socket
 import struct
-
+from bitstring import BitArray
+from pubsub import pub
+from libs import utils
 
 class Peer(object):
     def __init__(self, torrent,ip, port=6881):
 
         self.handshake = None
         self.hasHandshaked = False
+        self.bitField = False
         self.readBuffer = b""
         self.writeBuffer = b""
         self.state = {
@@ -17,6 +20,11 @@ class Peer(object):
             'peer_choking': True,
             'peer_interested': False,
         }
+        self.socket = None
+        self.ip = ip
+        self.port = port
+        self.torrent = torrent
+        self.socketsPeers = []
 
         self.message_ID_to_func_name = {
             0: self.choke,
@@ -28,17 +36,9 @@ class Peer(object):
             6: self.request,
             7: self.piece,
             8: self.cancel,
-            9: self.port
+            9: self.portRequest
         }
 
-        self.socket = None
-        self.ip = ip
-        self.port = port
-        self.torrent = torrent
-        self.socketsPeers = []
-
-        # def run(self):
-        #self.peerManager()
 
     def connectToPeer(self, timeout=10):
         try:
@@ -68,6 +68,15 @@ class Peer(object):
         assert len(hs) == 49 + len(pstr)
         self.handshake = hs
 
+    def build_request(self, index, offset, length):
+        header = struct.pack('>I', 13)
+        id = '\x06'
+        index = struct.pack('>I', index)
+        offset = struct.pack('>I', offset)
+        length = struct.pack('>I', length)
+        request = header + id + index + offset + length
+        return request
+
     def sendToPeer(self, msg):
         self.socket.send(msg)
 
@@ -86,6 +95,7 @@ class Peer(object):
 
             self.readBuffer = self.readBuffer[28 +len(info_hash)+20:]
                                                      # HEADER_SIZE
+
 
     def keep_alive(self, message_bytes):
         keep_alive = struct.unpack("!I", message_bytes[:4])[0]
@@ -111,27 +121,20 @@ class Peer(object):
         self.state['peer_interested'] = False
 
     def have(self, message_bytes):
-        '''	Have message is the index of a piece the peer has. Updates
-            peer.has_pieces.
-        '''
-        #self.has_pieces[piece_index] = True
         print "have"
-        pass
-
+        index = utils.convertBytesToDecimal(message_bytes, 3)
+        self.bitField[index] = True
 
     def bitfield(self, message_bytes):
-        ''' formats each byte into binary and updates peer.has_pieces list
-            appropriately.
-        '''
         print "bitfield"
-        pass
-
+        self.bitField = BitArray(bytes=message_bytes)
 
     def request(self, message_bytes):
-        index = message_bytes[:4]
+        piece_index = message_bytes[:4]
         piece_offset = message_bytes[4:8]
-        length = message_bytes[8:]
+        piece_data = message_bytes[8:]
         print "request"
+        pub.sendMessage('event.PeerRequestsPiece',piece=(piece_index,piece_offset,piece_data))
         # request: <len=0013><id=6><index><begin><length>
         pass
 
@@ -140,11 +143,14 @@ class Peer(object):
         ''' Piece message is constructed:
             <index><offset><piece bytes>
         '''
-        piece_index = message_bytes[:4]
-        piece_begins = message_bytes[4:8]
-        piece = message_bytes[8:]
         print "piece"
-        pass
+
+        piece_index = message_bytes[:4]
+        piece_offset = message_bytes[4:8]
+        piece_data = message_bytes[8:]
+
+        pub.sendMessage('event.Piece',piece=(piece_index,piece_offset,piece_data))
+
 
         # piece: <len=0009+X><id=7><index><begin><block>,
 
@@ -155,7 +161,7 @@ class Peer(object):
         # cancel: <len=0013><id=8><index><begin><length>,
 
 
-    def port(self, message_bytes):
-        print('HELP! I HAVE A PORT REQUEST!!!!!')
+    def portRequest(self, message_bytes):
+        print('PORT REQUEST')
         pass
         # port: <len=0003><id=9><listen-port>

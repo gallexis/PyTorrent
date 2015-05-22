@@ -14,13 +14,11 @@ if __name__ == '__main__':
 
     torrent = Torrent.Torrent("w.torrent")
     tk = Tracker.Tracker(torrent)
-    peerMngr = PeersManager.PeersManager(torrent)
+    peersManager = PeersManager.PeersManager(torrent)
     pc = PeerSeeker.PeerSeeker(tk, torrent)
 
-    pub.subscribe(peerMngr.addPeer, 'newPeer')
+    print "Start manager"
+    peersManager.start()
 
-    print "start mngr"
-    peerMngr.start()
-
-    print "start PeerChecker"
+    print "Start PeerChecker"
     pc.start()

@@ -1,6 +1,6 @@
 __author__ = 'alexisgallepe'
 
-import File
+import PiecesManager
 
 class FilesManager(object):
     def __init__(self, torrent):
@@ -15,7 +15,7 @@ class FilesManager(object):
 
         else:
             fileName = torrent['info']['name']
-            file = File.File(torrent, fileName)
+            file = PiecesManager.PiecesManager(torrent, fileName)
             self.files.append(file)
 
     def filesManager(self):
@@ -29,7 +29,7 @@ class FilesManager(object):
     def checkIfAllFilesCompleted(self):
         allFilesCompleted = True
         for file in self.files:
-            if file.isFileCompleted:
+            if file.arePiecesCompleted:
                 self.files.remove(file)
             else:
                 allFilesCompleted = False
