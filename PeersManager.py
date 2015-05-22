@@ -2,15 +2,18 @@ __author__ = 'alexisgallepe'
 
 import select
 import struct
+import random
 from threading import Thread
 from libs import utils
 from pubsub import pub
 
 class PeersManager(Thread):
-    def __init__(self, torrent):
+    def __init__(self, torrent,piecesManager):
         Thread.__init__(self)
         self.peers = []
         self.torrent = torrent
+        self.piecesManager = piecesManager
+
 
         # Events
         pub.subscribe(self.addPeer, 'event.newPeer')
@@ -42,7 +45,9 @@ class PeersManager(Thread):
             for socket in writeList:
                 peer = self.getPeerBySocket(socket)
                 try:
+                    print 'sent'
                     peer.sendToPeer(peer.writeBuffer)
+                    peer.writeBuffer = b""
                 except:
                     self.removePeer(peer)
                     continue
@@ -53,7 +58,7 @@ class PeersManager(Thread):
                 try:
                     peer.sendToPeer(peer.handshake)
                     interested = struct.pack('!I', 1) + struct.pack('!B', 2)
-                    peer.sendToPeer(interested)
+                    peer.writeBuffer = interested
                 except:
                     self.removePeer(peer)
 
@@ -77,13 +82,12 @@ class PeersManager(Thread):
 
         raise("peer not present in PeerList")
 
-    def askPeerForBlock(self):
-        for peer in self.peers:
+    def askPeerForBlock(self,):
 
+        randomPeerIndex = random.randrange(0, len(self.peers))
+        while self.peers[randomPeerIndex].hasBlock():
 
-
-        pass
-
+        else:
 
     def manageMessageReceived(self, peer):
         while len(peer.readBuffer) > 3:
@@ -133,3 +137,30 @@ class PeersManager(Thread):
             else:
                 print "else"
                 return
+
+    def calculRarestPiece(self):
+        sizeBitfield = self.peers[0].numberOfPieces
+        bitfields = [0] * sizeBitfield
+
+        for peer in self.peers:
+            for i in range(sizeBitfield):
+                if self.bitfield[i] == 1:
+                    bitfields[i] = ""
+                else:
+                    bitfields[i] += peer.bitField[i]
+
+        rarestPiece = min(bitfields)
+        indexOfRarestPiece = bitfields.index(rarestPiece)
+
+    def getRarestPiece(self):
+        index = self.calculRarestPiece()
+
+        for peer in self.peers:
+            if peer.hasPiece(index):
+                index, offset, length = self.piecesManager.pieces[index].getEmptyBlock()
+                request = peer.build_request(index, offset, length)
+                peer.writeBuffer = request
+                return
+
+
+

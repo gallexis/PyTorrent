@@ -3,6 +3,7 @@ __author__ = 'alexisgallepe'
 import math
 
 from libs import utils
+from pubsub import pub
 
 BLOCK_SIZE = 2 ** 14
 
@@ -58,6 +59,7 @@ class Piece(object):
         data = self.assembleData()
         if self.isHashPieceCorrect(data):
             self.pieceData = data
+            pub.sendMessage('event.PieceCompleted',pieceIndex=self.pieceIndex)
             return True
         else:
             return False

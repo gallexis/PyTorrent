@@ -21,14 +21,19 @@ class PiecesManager(Thread):
 
         # Create events
         pub.subscribe(self.receiveBlockPiece, 'event.Piece')
-        pub.subscribe(self.receiveBlockPiece, 'event.PeerRequestsPiece')
+        pub.subscribe(self.handlePeerRequests, 'event.PeerRequestsPiece')
+        pub.subscribe(self.updateBitfield, 'event.PieceCompleted')
 
     def run(self):
         while not self.piecesCompleted:
             # pseudo code
-            self.peersManager.askForBlock(emptyBlock)
+            self.peersManager.askForBlock()
 
             self.arePiecesCompleted()
+
+    def updateBitfield(self,pieceIndex):
+        # TODO
+        pass
 
     def receiveBlockPiece(self,piece):
         piece_index,piece_offset,piece_data = piece

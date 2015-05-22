@@ -11,7 +11,6 @@ class Peer(object):
 
         self.handshake = None
         self.hasHandshaked = False
-        self.bitField = False
         self.readBuffer = b""
         self.writeBuffer = b""
         self.state = {
@@ -39,6 +38,13 @@ class Peer(object):
             9: self.portRequest
         }
 
+        # Useful to set bitfield
+        if torrent.length % torrent.pieceLength == 0:
+            self.numberOfPieces = torrent.length / torrent.pieceLength
+        else:
+            self.numberOfPieces = (torrent.length / torrent.pieceLength) + 1
+
+        self.bitField = [False] * self.numberOfPieces
 
     def connectToPeer(self, timeout=10):
         try:
@@ -67,6 +73,9 @@ class Peer(object):
                          )
         assert len(hs) == 49 + len(pstr)
         self.handshake = hs
+
+    def hasPiece(self,index):
+        return self.bitField[index]
 
     def build_request(self, index, offset, length):
         header = struct.pack('>I', 13)
