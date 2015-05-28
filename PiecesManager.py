@@ -5,11 +5,9 @@ from threading import Thread
 from pubsub import pub
 
 class PiecesManager(Thread):
-    def __init__(self, torrent, peersManager):
+    def __init__(self, torrent):
         Thread.__init__(self)
         self.torrent = torrent
-        self.peersManager = peersManager
-
         self.piecesCompleted = False
 
         if torrent.length % torrent.pieceLength == 0:
@@ -17,6 +15,7 @@ class PiecesManager(Thread):
         else:
             self.numberOfPieces = (torrent.length / torrent.pieceLength) + 1
 
+        self.bitfield = [0]*self.numberOfPieces
         self.pieces = self.generatePieces()
 
         # Create events
@@ -24,18 +23,11 @@ class PiecesManager(Thread):
         pub.subscribe(self.handlePeerRequests, 'event.PeerRequestsPiece')
         pub.subscribe(self.updateBitfield, 'event.PieceCompleted')
 
-    def run(self):
-        while not self.piecesCompleted:
-            # pseudo code
-            self.peersManager.askForBlock()
-
-            self.arePiecesCompleted()
-
     def updateBitfield(self,pieceIndex):
-        # TODO
-        pass
+        self.bitfield[pieceIndex] = 1
 
     def receiveBlockPiece(self,piece):
+        print 'receive piece'
         piece_index,piece_offset,piece_data = piece
         self.pieces[piece_index].setBlock(piece_offset,piece_data)
 
@@ -45,10 +37,17 @@ class PiecesManager(Thread):
 
     def generatePieces(self, pieces=None):
         pieces = []
+        pieceSizeLeft = self.torrent.length
         for i in range(self.numberOfPieces):
             start = i * 20
             end = start + 20
-            pieces.append(Piece.Piece(i, self.torrent.pieceLength, self.torrent.info_hash[start:end]))
+
+            if (pieceSizeLeft - self.torrent.pieceLength) <= 0:
+                pieces.append(Piece.Piece(i, pieceSizeLeft, self.torrent.info_hash[start:end]))
+            else:
+                pieces.append(Piece.Piece(i, self.torrent.pieceLength, self.torrent.info_hash[start:end]))
+
+            pieceSizeLeft -= self.torrent.pieceLength
 
         return pieces
 

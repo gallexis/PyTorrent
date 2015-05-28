@@ -16,17 +16,19 @@ class Piece(object):
         self.finished = False
         self.pieceData = b""
         self.num_blocks = int(math.ceil(float(pieceSize) / BLOCK_SIZE))
-        # self.blockTracker = BitArray(self.num_blocks)
-        self.blocks = self.initBlocks()
+        self.blocks = []
+        self.blocks.append(self.initBlocks())
 
     # TODO : add timestamp for pending blocks
     def initBlocks(self):
-        print "init Blocks"
-        # block -> (    Statut_Block    ,BLOCK_SIZE,data)
-        #            (Free|Pending|Full)      1      2
-        blocks = [["Free", BLOCK_SIZE, b""]] * (self.num_blocks - 1)
-        # size of last block
-        blocks[self.num_blocks] = ["Free", int(float(self.pieceSize) % BLOCK_SIZE), b""]
+        if self.num_blocks > 1:
+            # block -> (    Statut_Block    ,BLOCK_SIZE,data)
+            #            (Free|Pending|Full)
+            blocks = [["Free", BLOCK_SIZE, b""]] * (self.num_blocks - 1)
+            # size of last block
+            blocks[self.num_blocks] = ["Free", int(float(self.pieceSize) % BLOCK_SIZE), b""]
+        else:
+            blocks = ["Free", int(self.pieceSize), b""]
         return blocks
 
     def setBlock(self, offset, data):
@@ -41,13 +43,18 @@ class Piece(object):
             self.finished = True
 
     def getEmptyBlock(self):
-        for i in range(len(self.blocks)):
-            if self.blocks[i][0] == "Free":
-                self.blocks[i][0] = "Pending"
-                # index, begin(offset), blockSize
-                return self.pieceIndex, i * BLOCK_SIZE, self.blocks[i][1]
+        if not self.isComplete():
+            for i in range(len(self.blocks)):
+                if self.blocks[i][0] == "Free":
+                    self.blocks[i][0] = "Pending"
+                    # index, begin(offset), blockSize
+                    return self.pieceIndex, i * BLOCK_SIZE, self.blocks[i][1]
 
-        raise Exception("No block left, Piece is complete or blocks pending remaining")
+    def freeBlockLeft(self):
+        for block in self.blocks:
+            if block[0] == "Free":
+                return True
+        return False
 
     def isComplete(self):
         # If there is at least one block Free|Pending -> Piece not complete -> return false

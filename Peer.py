@@ -12,7 +12,6 @@ class Peer(object):
         self.handshake = None
         self.hasHandshaked = False
         self.readBuffer = b""
-        self.writeBuffer = b""
         self.state = {
             'am_choking': True,
             'am_interested': False,
@@ -25,7 +24,7 @@ class Peer(object):
         self.torrent = torrent
         self.socketsPeers = []
 
-        self.message_ID_to_func_name = {
+        self.idFunction = {
             0: self.choke,
             1: self.unchoke,
             2: self.interested,
@@ -75,6 +74,7 @@ class Peer(object):
         self.handshake = hs
 
     def hasPiece(self,index):
+        print self.bitField[index]
         return self.bitField[index]
 
     def build_request(self, index, offset, length):
@@ -98,65 +98,66 @@ class Peer(object):
 
             if self.torrent.info_hash == info_hash:
                 self.hasHandshaked = True
-                print ('handshake', (info_hash, peer_id)), buf
             else:
                 print 'error info_hash'
 
             self.readBuffer = self.readBuffer[28 +len(info_hash)+20:]
-                                                     # HEADER_SIZE
 
-
-    def keep_alive(self, message_bytes):
-        keep_alive = struct.unpack("!I", message_bytes[:4])[0]
+    def keep_alive(self, payload):
+        keep_alive = struct.unpack("!I", payload[:4])[0]
         if keep_alive == 0:
             print('KEEP ALIVE')
+            return True
+        return False
 
 
-    def choke(self):
+    def choke(self,payload=None):
         print "choke"
         self.state['peer_choking'] = True
 
 
-    def unchoke(self):
+    def unchoke(self,payload=None):
         print "unchoke"
         self.state['peer_choking'] = False
 
-    def interested(self):
-        print "interested"
+    def interested(self,payload=None):
+        #print "interested"
         self.state['peer_interested'] = True
 
-    def not_interested(self):
-        print "not interested"
+    def not_interested(self,payload=None):
+        #print "not interested"
         self.state['peer_interested'] = False
 
-    def have(self, message_bytes):
-        print "have"
-        index = utils.convertBytesToDecimal(message_bytes, 3)
+    def have(self, payload):
+        #print "have"
+        index = utils.convertBytesToDecimal(payload, 3)
         self.bitField[index] = True
+        #print self.bitField
 
-    def bitfield(self, message_bytes):
-        print "bitfield"
-        self.bitField = BitArray(bytes=message_bytes)
+    def bitfield(self, payload):
+        #print "bitfield"
+        self.bitField = BitArray(bytes=payload)
+        #print self.bitField
 
-    def request(self, message_bytes):
-        piece_index = message_bytes[:4]
-        piece_offset = message_bytes[4:8]
-        piece_data = message_bytes[8:]
+    def request(self, payload):
+        piece_index = payload[:4]
+        piece_offset = payload[4:8]
+        piece_data = payload[8:]
         print "request"
         pub.sendMessage('event.PeerRequestsPiece',piece=(piece_index,piece_offset,piece_data))
         # request: <len=0013><id=6><index><begin><length>
         pass
 
 
-    def piece(self, message_bytes):
+    def piece(self, payload):
         ''' Piece message is constructed:
             <index><offset><piece bytes>
         '''
         print "piece"
 
-        piece_index = message_bytes[:4]
-        piece_offset = message_bytes[4:8]
-        piece_data = message_bytes[8:]
+        piece_index = payload[:4]
+        piece_offset = payload[4:8]
+        piece_data = payload[8:]
 
         pub.sendMessage('event.Piece',piece=(piece_index,piece_offset,piece_data))
 
@@ -164,13 +165,13 @@ class Peer(object):
         # piece: <len=0009+X><id=7><index><begin><block>,
 
 
-    def cancel(self, message_bytes):
+    def cancel(self, payload):
         print "cancel"
         pass
         # cancel: <len=0013><id=8><index><begin><length>,
 
 
-    def portRequest(self, message_bytes):
+    def portRequest(self, payload):
         print('PORT REQUEST')
         pass
         # port: <len=0003><id=9><listen-port>

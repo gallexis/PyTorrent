@@ -11,19 +11,19 @@ class PeersManager(Thread):
     def __init__(self, torrent,piecesManager):
         Thread.__init__(self)
         self.peers = []
+        self.unchokedPeers = []
         self.torrent = torrent
         self.piecesManager = piecesManager
 
-
         # Events
         pub.subscribe(self.addPeer, 'event.newPeer')
+        pub.subscribe(self.unchokedPeers.append, 'event.peerUnchoked')
 
     def run(self):
         while True:
             self.startConnectionToPeers()
             read = [p.socket for p in self.peers]
-            write = [p.socket for p in self.peers if p.writeBuffer != ""]
-            readList, writeList, _ = select.select(read, write, [], 2)
+            readList, _, _ = select.select(read, [], [], 1)
 
             # Receive from peers
             for socket in readList:
@@ -41,24 +41,13 @@ class PeersManager(Thread):
                 peer.readBuffer += msg
                 self.manageMessageReceived(peer)
 
-            # Send to peers
-            for socket in writeList:
-                peer = self.getPeerBySocket(socket)
-                try:
-                    print 'sent'
-                    peer.sendToPeer(peer.writeBuffer)
-                    peer.writeBuffer = b""
-                except:
-                    self.removePeer(peer)
-                    continue
-
     def startConnectionToPeers(self):
         for peer in self.peers:
             if not peer.hasHandshaked:
                 try:
                     peer.sendToPeer(peer.handshake)
                     interested = struct.pack('!I', 1) + struct.pack('!B', 2)
-                    peer.writeBuffer = interested
+                    peer.sendToPeer(interested)
                 except:
                     self.removePeer(peer)
 
@@ -73,7 +62,10 @@ class PeersManager(Thread):
                 pass
 
             self.peers.remove(peer)
-            print "peer removed"
+
+            if peer in self.unchokedPeers:
+                self.unchokedPeers.remove(peer)
+
 
     def getPeerBySocket(self,socket):
         for peer in self.peers:
@@ -81,13 +73,6 @@ class PeersManager(Thread):
                 return peer
 
         raise("peer not present in PeerList")
-
-    def askPeerForBlock(self,):
-
-        randomPeerIndex = random.randrange(0, len(self.peers))
-        while self.peers[randomPeerIndex].hasBlock():
-
-        else:
 
     def manageMessageReceived(self, peer):
         while len(peer.readBuffer) > 3:
@@ -98,7 +83,8 @@ class PeersManager(Thread):
             msgLength = utils.convertBytesToDecimal(peer.readBuffer[0:4], 3)
 
             # handle keep alive
-            peer.keep_alive(peer.readBuffer)
+            if peer.keep_alive(peer.readBuffer):
+                return
 
             msgCode = int(ord(peer.readBuffer[4:5]))
             payload = peer.readBuffer[5:4 + msgLength]
@@ -110,33 +96,13 @@ class PeersManager(Thread):
 
             peer.readBuffer = peer.readBuffer[msgLength + 4:]
 
-            if not msgCode:
-                print 'keep alive'
-
-            elif msgCode == 0:
-                peer.choke()
-
-            elif msgCode == 1:
-                peer.unchoke()
-
-            elif msgCode == 4:
-                peer.have(payload)
-
-            elif msgCode == 5:
-                peer.bitfield(payload)
-
-            elif msgCode == 7:
-                peer.piece(payload)
-
-            elif msgCode == 8:
-                peer.cancel(payload)
-
-            elif msgCode == 9:
-                peer.portRequest(payload)
-
-            else:
-                print "else"
-                return
+            try:
+                peer.idFunction[msgCode](payload)
+            except:
+                print "error id:"
+                print msgCode
+                # erase readBuffer?
+                break
 
     def calculRarestPiece(self):
         sizeBitfield = self.peers[0].numberOfPieces
@@ -144,23 +110,20 @@ class PeersManager(Thread):
 
         for peer in self.peers:
             for i in range(sizeBitfield):
-                if self.bitfield[i] == 1:
+                if self.piecesManager.bitfield[i] == 1:
                     bitfields[i] = ""
                 else:
                     bitfields[i] += peer.bitField[i]
 
-        rarestPiece = min(bitfields)
+        rarestPiece = min(bitfields)  # FILTER + LIST PEERS UNCHOKED ME
         indexOfRarestPiece = bitfields.index(rarestPiece)
 
-    def getRarestPiece(self):
-        index = self.calculRarestPiece()
+        return indexOfRarestPiece
 
+    def requestNewPiece(self,index,offset, length):
         for peer in self.peers:
-            if peer.hasPiece(index):
-                index, offset, length = self.piecesManager.pieces[index].getEmptyBlock()
+            if peer.hasPiece(index) and not peer.state['peer_choking']:
+                print 'request new piece'
                 request = peer.build_request(index, offset, length)
-                peer.writeBuffer = request
+                peer.sendToPeer(request)
                 return
-
-
-
