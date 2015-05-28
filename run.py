@@ -27,7 +27,7 @@ class Run(object):
     def start(self):
         while not self.piecesManager.arePiecesCompleted():
 
-            if len(self.peersManager.peers) > 0:
+            if len(self.peersManager.unchokedPeers) > 0:
                 rarestPiece = self.peersManager.calculRarestPiece()
 
                 if self.piecesManager.pieces[rarestPiece].freeBlockLeft():

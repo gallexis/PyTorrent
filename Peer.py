@@ -74,7 +74,7 @@ class Peer(object):
         self.handshake = hs
 
     def hasPiece(self,index):
-        print self.bitField[index]
+        print "bitfield",self.bitField[index]
         return self.bitField[index]
 
     def build_request(self, index, offset, length):
@@ -118,6 +118,7 @@ class Peer(object):
 
     def unchoke(self,payload=None):
         print "unchoke"
+        pub.sendMessage('event.peerUnchoked',peer=self)
         self.state['peer_choking'] = False
 
     def interested(self,payload=None):
@@ -130,7 +131,7 @@ class Peer(object):
 
     def have(self, payload):
         #print "have"
-        index = utils.convertBytesToDecimal(payload, 3)
+        index = utils.convertBytesToDecimal(payload)
         self.bitField[index] = True
         #print self.bitField
 
@@ -155,8 +156,8 @@ class Peer(object):
         '''
         print "piece"
 
-        piece_index = payload[:4]
-        piece_offset = payload[4:8]
+        piece_index = utils.convertBytesToDecimal(payload[:4])
+        piece_offset = utils.convertBytesToDecimal(payload[4:8])
         piece_data = payload[8:]
 
         pub.sendMessage('event.Piece',piece=(piece_index,piece_offset,piece_data))

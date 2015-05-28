@@ -17,7 +17,7 @@ class PeersManager(Thread):
 
         # Events
         pub.subscribe(self.addPeer, 'event.newPeer')
-        pub.subscribe(self.unchokedPeers.append, 'event.peerUnchoked')
+        pub.subscribe(self.addUnchokedPeer, 'event.peerUnchoked')
 
     def run(self):
         while True:
@@ -54,6 +54,9 @@ class PeersManager(Thread):
     def addPeer(self, peer):
         self.peers.append(peer)
 
+    def addUnchokedPeer(self, peer):
+        self.unchokedPeers.append(peer)
+
     def removePeer(self, peer):
         if peer in self.peers:
             try:
@@ -80,7 +83,7 @@ class PeersManager(Thread):
                 peer.checkHandshake(peer.readBuffer)
                 return
 
-            msgLength = utils.convertBytesToDecimal(peer.readBuffer[0:4], 3)
+            msgLength = utils.convertBytesToDecimal(peer.readBuffer[0:4])
 
             # handle keep alive
             if peer.keep_alive(peer.readBuffer):
@@ -91,17 +94,15 @@ class PeersManager(Thread):
 
             # Message is not complete. Return
             if len(payload) < msgLength - 1:
-                print msgLength - 1
+                #print len(payload),' : ', msgLength - 1
                 return
 
             peer.readBuffer = peer.readBuffer[msgLength + 4:]
 
             try:
                 peer.idFunction[msgCode](payload)
-            except:
-                print "error id:"
-                print msgCode
-                # erase readBuffer?
+            except Exception, e:
+                print "error id:", msgCode," ->", e
                 break
 
     def calculRarestPiece(self):
@@ -121,8 +122,8 @@ class PeersManager(Thread):
         return indexOfRarestPiece
 
     def requestNewPiece(self,index,offset, length):
-        for peer in self.peers:
-            if peer.hasPiece(index) and not peer.state['peer_choking']:
+        for peer in self.unchokedPeers:
+            if peer.hasPiece(index):
                 print 'request new piece'
                 request = peer.build_request(index, offset, length)
                 peer.sendToPeer(request)

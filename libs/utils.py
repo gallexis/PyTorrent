@@ -2,8 +2,10 @@ __author__ = 'alexisgallepe'
 
 import hashlib
 
-def convertBytesToDecimal(headerBytes, power):
+def convertBytesToDecimal(headerBytes):
     size = 0
+    power = len(headerBytes) - 1
+
     for ch in headerBytes:
         size += int(ord(ch)) * 256 ** power
         power -= 1

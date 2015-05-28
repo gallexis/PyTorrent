@@ -1,6 +1,7 @@
 __author__ = 'alexisgallepe'
 
 import Piece
+from libs import utils
 from threading import Thread
 from pubsub import pub
 
@@ -25,15 +26,15 @@ class PiecesManager(Thread):
 
     def updateBitfield(self,pieceIndex):
         self.bitfield[pieceIndex] = 1
+        print 'P:',pieceIndex,' B: ', self.bitfield,"\n"
 
     def receiveBlockPiece(self,piece):
         print 'receive piece'
         piece_index,piece_offset,piece_data = piece
-        self.pieces[piece_index].setBlock(piece_offset,piece_data)
+        self.pieces[int(piece_index)].setBlock(piece_offset,piece_data)
 
     def handlePeerRequests(self,piece):
         piece_index,piece_offset,piece_data = piece
-
 
     def generatePieces(self, pieces=None):
         pieces = []
@@ -43,9 +44,9 @@ class PiecesManager(Thread):
             end = start + 20
 
             if (pieceSizeLeft - self.torrent.pieceLength) <= 0:
-                pieces.append(Piece.Piece(i, pieceSizeLeft, self.torrent.info_hash[start:end]))
+                pieces.append(Piece.Piece(i, pieceSizeLeft, self.torrent.pieces[start:end]))
             else:
-                pieces.append(Piece.Piece(i, self.torrent.pieceLength, self.torrent.info_hash[start:end]))
+                pieces.append(Piece.Piece(i, self.torrent.pieceLength, self.torrent.pieces[start:end]))
 
             pieceSizeLeft -= self.torrent.pieceLength
 
