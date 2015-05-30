@@ -13,6 +13,20 @@ class Torrent(object):
             contents = f.read()
         self.torrentFile = bencode.bdecode(contents)
 
+        self.names = []
+
+        root = self.torrentFile['info']['name']
+
+        if 'files' in self.torrentFile['info']:
+            for file in self.torrentFile['files']:
+                self.names.append(root+'/'+file['path'])
+
+        else:
+            self.names.append(root)
+
+        print self.names
+
+
         self.announceList = self.torrentFile['announce-list']
         self.length = self.torrentFile['info']['length']
         self.pieceLength = self.torrentFile['info']['piece length']

@@ -16,6 +16,7 @@ class PiecesManager(Thread):
         else:
             self.numberOfPieces = (torrent.length / torrent.pieceLength) + 1
 
+
         self.bitfield = [0]*self.numberOfPieces
         self.pieces = self.generatePieces()
 
@@ -26,7 +27,7 @@ class PiecesManager(Thread):
 
     def updateBitfield(self,pieceIndex):
         self.bitfield[pieceIndex] = 1
-        print 'P:',pieceIndex,' B: ', self.bitfield,"\n"
+        #print 'P:',pieceIndex
 
     def receiveBlockPiece(self,piece):
         print 'receive piece'
@@ -39,6 +40,7 @@ class PiecesManager(Thread):
     def generatePieces(self, pieces=None):
         pieces = []
         pieceSizeLeft = self.torrent.length
+
         for i in range(self.numberOfPieces):
             start = i * 20
             end = start + 20
@@ -52,15 +54,14 @@ class PiecesManager(Thread):
 
         return pieces
 
-    """
-    def createFile(self):
-        fd = open(self.fileName, "wb")
+
+    def createFile(self,fileName):
+        fd = open(fileName, "wb")
         data = b""
         for piece in self.pieces:
             data += piece.assembleData()
 
         fd.write(data)
-    """
 
     def arePiecesCompleted(self):
         for piece in self.pieces:

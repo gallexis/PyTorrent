@@ -34,4 +34,14 @@ class Run(object):
                     index, offset, length = self.piecesManager.pieces[rarestPiece].getEmptyBlock()
                     self.peersManager.requestNewPiece(index, offset, length)
 
-            time.sleep(1)
+            #time.sleep(1)
+
+        # if one file
+        if len(self.torrent.names) > 1:
+            # nameFiles = torrent['files']['path']
+            raise('To be completed')
+
+        else:
+            fileName = self.torrent.names[0]
+            self.piecesManager.createFile(fileName)
+            print "File ",fileName,' created'

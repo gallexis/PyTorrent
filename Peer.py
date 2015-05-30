@@ -74,7 +74,6 @@ class Peer(object):
         self.handshake = hs
 
     def hasPiece(self,index):
-        print "bitfield",self.bitField[index]
         return self.bitField[index]
 
     def build_request(self, index, offset, length):
