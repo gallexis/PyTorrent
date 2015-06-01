@@ -15,9 +15,25 @@ class PeersManager(Thread):
         self.torrent = torrent
         self.piecesManager = piecesManager
 
+        self.piecesByPeer = []
+        for i in range(self.piecesManager.numberOfPieces):
+            self.piecesByPeer.append([0,[]])
+
         # Events
         pub.subscribe(self.addPeer, 'event.newPeer')
         pub.subscribe(self.addUnchokedPeer, 'event.peerUnchoked')
+        pub.subscribe(self.peersBitfield, 'event.updatePeersBitfield')
+
+    def peersBitfield(self,bitfield=None,peer=None,pieceIndex=None):
+        if not pieceIndex == None:
+            #print 'pieceIndex: ',pieceIndex
+            self.piecesByPeer[pieceIndex] = ["",[]]
+            return
+
+        for i in range(len(self.piecesByPeer)):
+            if bitfield[i] == 1 and peer not in self.piecesByPeer[i][1] and not self.piecesByPeer[i][0] == "":
+                self.piecesByPeer[i][1].append(peer)
+                self.piecesByPeer[i][0] = len(self.piecesByPeer[i][1])
 
     def run(self):
         while True:
@@ -69,6 +85,10 @@ class PeersManager(Thread):
             if peer in self.unchokedPeers:
                 self.unchokedPeers.remove(peer)
 
+            for i in range(len(self.piecesByPeer)):
+                if peer in self.piecesByPeer[i][1]:
+                    self.piecesByPeer[i][1].remove(peer)
+
 
     def getPeerBySocket(self,socket):
         for peer in self.peers:
@@ -89,42 +109,51 @@ class PeersManager(Thread):
             if peer.keep_alive(peer.readBuffer):
                 return
 
-            msgCode = int(ord(peer.readBuffer[4:5]))
-            payload = peer.readBuffer[5:4 + msgLength]
+            #len 0
+            try:
+                msgCode = int(ord(peer.readBuffer[4:5]))
+                payload = peer.readBuffer[5:4 + msgLength]
+            except Exception, e:
+                print e
+                return
 
             # Message is not complete. Return
             if len(payload) < msgLength - 1:
-                #print len(payload),' : ', msgLength - 1
                 return
 
             peer.readBuffer = peer.readBuffer[msgLength + 4:]
 
+            peer.idFunction[msgCode](payload)
+
+            """
             try:
                 peer.idFunction[msgCode](payload)
             except Exception, e:
                 print "error id:", msgCode," ->", e
-                break
+                return
+            """
 
-    def calculRarestPiece(self):
-        sizeBitfield = self.peers[0].numberOfPieces
-        bitfields = [0] * sizeBitfield
-
-        for peer in self.peers:
-            for i in range(sizeBitfield):
-                if self.piecesManager.bitfield[i] == 1:
-                    bitfields[i] = ""
-                else:
-                    bitfields[i] += peer.bitField[i]
-
-        rarestPiece = min(bitfields)  # FILTER + LIST PEERS UNCHOKED ME
-        indexOfRarestPiece = bitfields.index(rarestPiece)
-
-        return indexOfRarestPiece
 
     def requestNewPiece(self,index,offset, length):
+        """
+        numberOfPeers = len(self.piecesByPeer[index][1])
+        peer = self.piecesByPeer[index][1][random.randrange(0,numberOfPeers)]
+
+        request = peer.build_request(index, offset, length)
+        peer.sendToPeer(request)
+        return
+        """
         for peer in self.unchokedPeers:
             if peer.hasPiece(index):
-                print 'request new piece'
                 request = peer.build_request(index, offset, length)
                 peer.sendToPeer(request)
                 return
+        """
+        while True:
+            numPeer = random.randrange(0,len(self.unchokedPeers))
+            peer = self.unchokedPeers[numPeer]
+            if peer.hasPiece(index):
+                request = peer.build_request(index, offset, length)
+                peer.sendToPeer(request)
+                return
+        """

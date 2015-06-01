@@ -2,6 +2,7 @@ __author__ = 'alexisgallepe'
 
 import Piece
 from libs import utils
+import bitstring
 from threading import Thread
 from pubsub import pub
 
@@ -16,8 +17,7 @@ class PiecesManager(Thread):
         else:
             self.numberOfPieces = (torrent.length / torrent.pieceLength) + 1
 
-
-        self.bitfield = [0]*self.numberOfPieces
+        self.bitfield = bitstring.BitArray(self.numberOfPieces)
         self.pieces = self.generatePieces()
 
         # Create events
@@ -27,10 +27,8 @@ class PiecesManager(Thread):
 
     def updateBitfield(self,pieceIndex):
         self.bitfield[pieceIndex] = 1
-        #print 'P:',pieceIndex
 
     def receiveBlockPiece(self,piece):
-        print 'receive piece'
         piece_index,piece_offset,piece_data = piece
         self.pieces[int(piece_index)].setBlock(piece_offset,piece_data)
 
@@ -53,7 +51,6 @@ class PiecesManager(Thread):
             pieceSizeLeft -= self.torrent.pieceLength
 
         return pieces
-
 
     def createFile(self,fileName):
         fd = open(fileName, "wb")

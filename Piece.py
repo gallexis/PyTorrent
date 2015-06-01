@@ -1,6 +1,7 @@
 __author__ = 'alexisgallepe'
 
 import math
+import time
 
 from libs import utils
 from pubsub import pub
@@ -21,33 +22,39 @@ class Piece(object):
 
     # TODO : add timestamp for pending blocks
     def initBlocks(self):
-
+        self.blocks = []
+        tmpSize = self.pieceSize
         if self.num_blocks > 1:
-            blocks = [["Free", BLOCK_SIZE, b""]] * (self.num_blocks)
-            blocks[self.num_blocks-1] = ["Free", self.pieceSize-((self.num_blocks-1)*BLOCK_SIZE), b""]
+            for i in range(self.num_blocks):
+                if self.pieceSize-BLOCK_SIZE > 0:
+                    self.blocks.append(["Free", BLOCK_SIZE, b"",0])
+                    tmpSize-=BLOCK_SIZE
+                else:
+                    self.blocks.append(["Free", tmpSize, b"",0])
         else:
-            blocks = [["Free", int(self.pieceSize), b""]]
-
-        self.blocks = blocks
+            self.blocks.append(["Free", int(self.pieceSize), b"",0])
 
     def setBlock(self, offset, data):
+        if len(data) <= 0:
+            print 'empty'
+            return
+
         if offset == 0:
             index = 0
         else:
             index = offset / BLOCK_SIZE
+
         self.blocks[index][2] = data
         self.blocks[index][0] = "Full"
 
-        if self.isComplete():
-            self.finished = True
-
-    def getEmptyBlock(self):
+    def getEmptyBlock(self,idBlock):
         if not self.isComplete():
-            for i in range(len(self.blocks)):
-                if self.blocks[i][0] == "Free":
-                    self.blocks[i][0] = "Pending"
-                    # index, begin(offset), blockSize
-                    return self.pieceIndex, i * BLOCK_SIZE, self.blocks[i][1]
+            if self.blocks[idBlock][0] == "Free":
+                self.blocks[idBlock][0] = "Pending"
+                self.blocks[idBlock][3] = int(time.time())
+                # index, begin(offset), blockSize
+                return self.pieceIndex, idBlock * BLOCK_SIZE, self.blocks[idBlock][1]
+        return False
 
     def freeBlockLeft(self):
         for block in self.blocks:
@@ -66,15 +73,17 @@ class Piece(object):
         if self.isHashPieceCorrect(data):
             self.pieceData = data
             pub.sendMessage('event.PieceCompleted',pieceIndex=self.pieceIndex)
+            pub.sendMessage('event.updatePeersBitfield',pieceIndex=self.pieceIndex)
+            self.finished = True
             return True
         else:
             return False
 
     def assembleData(self):
-        buf = []
+        buf = b""
         for block in self.blocks:
-            buf.append(block[2])
-        return ''.join(buf)
+            buf+=block[2]
+        return buf
 
     def isHashPieceCorrect(self,data):
         if utils.sha1_hash(data) == self.pieceHash:

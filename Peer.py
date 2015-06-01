@@ -2,6 +2,7 @@ __author__ = 'alexisgallepe'
 
 import socket
 import struct
+import bitstring
 from bitstring import BitArray
 from pubsub import pub
 from libs import utils
@@ -43,7 +44,7 @@ class Peer(object):
         else:
             self.numberOfPieces = (torrent.length / torrent.pieceLength) + 1
 
-        self.bitField = [False] * self.numberOfPieces
+        self.bitField = bitstring.BitArray(self.numberOfPieces)
 
     def connectToPeer(self, timeout=10):
         try:
@@ -85,8 +86,19 @@ class Peer(object):
         request = header + id + index + offset + length
         return request
 
+    def build_bitfield(self):
+        length = struct.pack('>I', len(self.bitField))
+        id = '\x05'
+        bitfield= self.bitField.tobytes()
+        bitfield = length + id + bitfield
+        return bitfield
+
     def sendToPeer(self, msg):
-        self.socket.send(msg)
+        try:
+            self.socket.send(msg)
+        except:
+            #print "erreur fd"    !!!!!!!!!!!!!!!!!!!!!!
+            pass
 
     def checkHandshake(self, buf, pstr="BitTorrent protocol"):
         if buf[1:20] == pstr:
@@ -97,6 +109,7 @@ class Peer(object):
 
             if self.torrent.info_hash == info_hash:
                 self.hasHandshaked = True
+                #self.sendToPeer(self.build_bitfield())
             else:
                 print 'error info_hash'
 
@@ -109,11 +122,9 @@ class Peer(object):
             return True
         return False
 
-
     def choke(self,payload=None):
         print "choke"
         self.state['peer_choking'] = True
-
 
     def unchoke(self,payload=None):
         print "unchoke"
@@ -129,15 +140,13 @@ class Peer(object):
         self.state['peer_interested'] = False
 
     def have(self, payload):
-        #print "have"
         index = utils.convertBytesToDecimal(payload)
         self.bitField[index] = True
-        #print self.bitField
+        pub.sendMessage('event.updatePeersBitfield',bitfield=self.bitField,peer=self)
 
     def bitfield(self, payload):
-        #print "bitfield"
         self.bitField = BitArray(bytes=payload)
-        #print self.bitField
+        pub.sendMessage('event.updatePeersBitfield',bitfield=self.bitField,peer=self)
 
     def request(self, payload):
         piece_index = payload[:4]
@@ -153,7 +162,7 @@ class Peer(object):
         ''' Piece message is constructed:
             <index><offset><piece bytes>
         '''
-        print "piece"
+        #print "piece"
 
         piece_index = utils.convertBytesToDecimal(payload[:4])
         piece_offset = utils.convertBytesToDecimal(payload[4:8])
