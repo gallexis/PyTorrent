@@ -5,6 +5,7 @@ from libs import utils
 import bitstring
 from threading import Thread
 from pubsub import pub
+import string
 
 class PiecesManager(Thread):
     def __init__(self, torrent):

@@ -13,18 +13,18 @@ class Peer(object):
         self.handshake = None
         self.hasHandshaked = False
         self.readBuffer = b""
-        self.state = {
-            'am_choking': True,
-            'am_interested': False,
-            'peer_choking': True,
-            'peer_interested': False,
-        }
         self.socket = None
         self.ip = ip
         self.port = port
         self.torrent = torrent
         self.socketsPeers = []
 
+        self.state = {
+            'am_choking': True,
+            'am_interested': False,
+            'peer_choking': True,
+            'peer_interested': False,
+        }
         self.idFunction = {
             0: self.choke,
             1: self.unchoke,
@@ -37,6 +37,8 @@ class Peer(object):
             8: self.cancel,
             9: self.portRequest
         }
+
+        self.blockCounter=5
 
         # Useful to set bitfield
         if torrent.length % torrent.pieceLength == 0:
@@ -59,9 +61,6 @@ class Peer(object):
         return False
 
     def build_handshake(self):
-        """Return formatted message ready for sending to peer:
-            handshake: <pstrlen><pstr><reserved><info_hash><peer_id>
-        """
         pstr = "BitTorrent protocol"
         reserved = "0" * 8
         hs = struct.pack("B" + str(len(pstr)) + "s8x20s20s",
@@ -87,7 +86,7 @@ class Peer(object):
         return request
 
     def build_bitfield(self):
-        length = struct.pack('>I', len(self.bitField))
+        length = struct.pack('>I', 4)
         id = '\x05'
         bitfield= self.bitField.tobytes()
         bitfield = length + id + bitfield
@@ -149,38 +148,21 @@ class Peer(object):
         pub.sendMessage('event.updatePeersBitfield',bitfield=self.bitField,peer=self)
 
     def request(self, payload):
+        self.blockCounter-=1
         piece_index = payload[:4]
         piece_offset = payload[4:8]
         piece_data = payload[8:]
-        print "request"
         pub.sendMessage('event.PeerRequestsPiece',piece=(piece_index,piece_offset,piece_data))
-        # request: <len=0013><id=6><index><begin><length>
-        pass
-
 
     def piece(self, payload):
-        ''' Piece message is constructed:
-            <index><offset><piece bytes>
-        '''
-        #print "piece"
-
+        self.blockCounter+=1
         piece_index = utils.convertBytesToDecimal(payload[:4])
         piece_offset = utils.convertBytesToDecimal(payload[4:8])
         piece_data = payload[8:]
-
         pub.sendMessage('event.Piece',piece=(piece_index,piece_offset,piece_data))
-
-
-        # piece: <len=0009+X><id=7><index><begin><block>,
-
 
     def cancel(self, payload):
         print "cancel"
-        pass
-        # cancel: <len=0013><id=8><index><begin><length>,
-
 
     def portRequest(self, payload):
         print('PORT REQUEST')
-        pass
-        # port: <len=0003><id=9><listen-port>

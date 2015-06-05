@@ -6,6 +6,7 @@ import random
 from threading import Thread
 from libs import utils
 from pubsub import pub
+import RarestPieces
 
 class PeersManager(Thread):
     def __init__(self, torrent,piecesManager):
@@ -14,6 +15,7 @@ class PeersManager(Thread):
         self.unchokedPeers = []
         self.torrent = torrent
         self.piecesManager = piecesManager
+        self.rarestPieces = RarestPieces.RarestPieces(piecesManager)
 
         self.piecesByPeer = []
         for i in range(self.piecesManager.numberOfPieces):
@@ -26,7 +28,6 @@ class PeersManager(Thread):
 
     def peersBitfield(self,bitfield=None,peer=None,pieceIndex=None):
         if not pieceIndex == None:
-            #print 'pieceIndex: ',pieceIndex
             self.piecesByPeer[pieceIndex] = ["",[]]
             return
 
@@ -85,9 +86,9 @@ class PeersManager(Thread):
             if peer in self.unchokedPeers:
                 self.unchokedPeers.remove(peer)
 
-            for i in range(len(self.piecesByPeer)):
-                if peer in self.piecesByPeer[i][1]:
-                    self.piecesByPeer[i][1].remove(peer)
+            for piece in self.rarestPieces.rarestPieces:
+                if peer in piece["peer"]:
+                    piece["peer"].remove(peer)
 
 
     def getPeerBySocket(self,socket):
@@ -134,21 +135,21 @@ class PeersManager(Thread):
             """
 
 
-    def requestNewPiece(self,index,offset, length):
-        """
-        numberOfPeers = len(self.piecesByPeer[index][1])
-        peer = self.piecesByPeer[index][1][random.randrange(0,numberOfPeers)]
+    def requestNewPiece(self,pieceIndex,offset, length):
+        numberOfPeers = len(self.piecesByPeer[pieceIndex][1])
+        peer = self.piecesByPeer[pieceIndex][1][random.randrange(0,numberOfPeers)]
 
-        request = peer.build_request(index, offset, length)
+        request = peer.build_request(pieceIndex, offset, length)
         peer.sendToPeer(request)
-        return
+
+
         """
         for peer in self.unchokedPeers:
             if peer.hasPiece(index):
                 request = peer.build_request(index, offset, length)
                 peer.sendToPeer(request)
                 return
-        """
+
         while True:
             numPeer = random.randrange(0,len(self.unchokedPeers))
             peer = self.unchokedPeers[numPeer]

@@ -35,10 +35,6 @@ class Piece(object):
             self.blocks.append(["Free", int(self.pieceSize), b"",0])
 
     def setBlock(self, offset, data):
-        if len(data) <= 0:
-            print 'empty'
-            return
-
         if offset == 0:
             index = 0
         else:
@@ -47,13 +43,16 @@ class Piece(object):
         self.blocks[index][2] = data
         self.blocks[index][0] = "Full"
 
-    def getEmptyBlock(self,idBlock):
+    def getEmptyBlock(self):
         if not self.isComplete():
-            if self.blocks[idBlock][0] == "Free":
-                self.blocks[idBlock][0] = "Pending"
-                self.blocks[idBlock][3] = int(time.time())
-                # index, begin(offset), blockSize
-                return self.pieceIndex, idBlock * BLOCK_SIZE, self.blocks[idBlock][1]
+            idPiece = 0
+            for block in self.blocks:
+                if block[0] == "Free":
+                    block[0] = "Pending"
+                    block[3] = int(time.time())
+                    return self.pieceIndex, idPiece * BLOCK_SIZE, block[1]
+                idPiece+=1
+
         return False
 
     def freeBlockLeft(self):

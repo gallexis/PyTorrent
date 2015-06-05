@@ -7,9 +7,10 @@ import PiecesManager
 import Torrent
 import Tracker
 
+
 class Run(object):
     def __init__(self):
-        self.torrent = Torrent.Torrent("b.torrent")
+        self.torrent = Torrent.Torrent("z.torrent")
         self.tracker = Tracker.Tracker(self.torrent)
         self.peerSeeker = PeerSeeker.PeerSeeker(self.tracker, self.torrent)
         self.piecesManager = PiecesManager.PiecesManager(self.torrent)
@@ -27,17 +28,15 @@ class Run(object):
     def start(self):
         while not self.piecesManager.arePiecesCompleted():
             if len(self.peersManager.unchokedPeers) > 0:
-                #rarestPiece = self.peersManager.calculRarestPiece()
 
-                #if self.piecesManager.pieces[rarestPiece].freeBlockLeft():
-                for i in range(self.piecesManager.numberOfPieces):
-                    for j in range(self.piecesManager.pieces[i].num_blocks):
-                        if not self.piecesManager.pieces[i].finished:
-                            data = self.piecesManager.pieces[i].getEmptyBlock(j)
-                            if data:
-                                index, offset, length = data
-                                self.peersManager.requestNewPiece(index, offset, length)
+                rarestP = min(self.peersManager.piecesByPeer)
+                rarestP = self.peersManager.piecesByPeer.index(rarestP)
 
+                if not self.piecesManager.pieces[rarestP].finished:
+                    data = self.piecesManager.pieces[rarestP].getEmptyBlock()
+                    if data:
+                        index, offset, length = data
+                        self.peersManager.requestNewPiece(index, offset, length)
 
                 for piece in self.piecesManager.pieces:
                     for block in piece.blocks:
@@ -51,7 +50,7 @@ class Run(object):
                         if self.piecesManager.pieces[i].blocks[j][0]=="Full":
                             b+=len(self.piecesManager.pieces[i].blocks[j][2])
 
-                print "File complete: ",self.piecesManager.arePiecesCompleted()," Size File: ",self.torrent.length,"Size received: ",b
+                print "Nb peers: ",len(self.peersManager.unchokedPeers)," File: ",self.torrent.length,"Received: ",b
 
 
             #print len(self.peersManager.unchokedPeers)

@@ -26,8 +26,12 @@ class Torrent(object):
 
         print self.names
 
+        if 'announce-list' in self.torrentFile:
+            self.announceList = self.torrentFile['announce-list']
+        else:
+            self.announceList = [[self.torrentFile['announce']]]
 
-        self.announceList = self.torrentFile['announce-list']
+
         self.length = self.torrentFile['info']['length']
         self.pieceLength = self.torrentFile['info']['piece length']
         self.pieces = self.torrentFile['info']['pieces']

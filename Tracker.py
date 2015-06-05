@@ -2,6 +2,7 @@ __author__ = 'alexisgallepe'
 
 import bencode
 import requests
+import socket
 
 
 class Tracker(object):
@@ -13,14 +14,14 @@ class Tracker(object):
         for tracker in self.torrent.announceList:
             if tracker[0][:4] == "http":
                 try:
-                    self.getPeersFromTracker(tracker[0])
+                    self.getPeersFromHTTPtracker(tracker[0])
                 except:
                     pass
 
         if len(self.listPeers) <= 0: print "Error, no peer available"
         return self.listPeers
 
-    def getPeersFromTracker(self, tracker):
+    def getPeersFromHTTPtracker(self, tracker):
         params = {
             'info_hash': self.torrent.info_hash,
             'peer_id': self.torrent.peer_id,
