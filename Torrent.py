@@ -24,8 +24,6 @@ class Torrent(object):
         else:
             self.names.append(root)
 
-        print self.names
-
         if 'announce-list' in self.torrentFile:
             self.announceList = self.torrentFile['announce-list']
         else:

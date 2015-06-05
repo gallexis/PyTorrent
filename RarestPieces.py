@@ -21,8 +21,11 @@ class RarestPieces(object):
             raise("no more piece")
 
         # Piece complete
-        if not pieceIndex == None:
-            self.rarestPieces.__delitem__(pieceIndex)
+        try:
+            if not pieceIndex == None:
+                self.rarestPieces.__delitem__(pieceIndex)
+        except:
+            pass
 
         # Peer's bitfield updated
         else:
@@ -31,5 +34,5 @@ class RarestPieces(object):
                     self.rarestPieces[i]["peers"].append(peer)
                     self.rarestPieces[i]["numberOfPeers"] = len(self.rarestPieces[i]["peers"])
 
-    def getSortedList(self):
+    def getSortedPieces(self):
         return sorted(self.rarestPieces, key=lambda x:x['numberOfPeers'])

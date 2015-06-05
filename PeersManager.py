@@ -86,9 +86,9 @@ class PeersManager(Thread):
             if peer in self.unchokedPeers:
                 self.unchokedPeers.remove(peer)
 
-            for piece in self.rarestPieces.rarestPieces:
-                if peer in piece["peer"]:
-                    piece["peer"].remove(peer)
+            for rarestPiece in self.rarestPieces.rarestPieces:
+                if peer in rarestPiece["peers"]:
+                    rarestPiece["peers"].remove(peer)
 
 
     def getPeerBySocket(self,socket):
@@ -135,26 +135,7 @@ class PeersManager(Thread):
             """
 
 
-    def requestNewPiece(self,pieceIndex,offset, length):
-        numberOfPeers = len(self.piecesByPeer[pieceIndex][1])
-        peer = self.piecesByPeer[pieceIndex][1][random.randrange(0,numberOfPeers)]
+    def requestNewPiece(self,peer, pieceIndex,offset, length):
 
         request = peer.build_request(pieceIndex, offset, length)
         peer.sendToPeer(request)
-
-
-        """
-        for peer in self.unchokedPeers:
-            if peer.hasPiece(index):
-                request = peer.build_request(index, offset, length)
-                peer.sendToPeer(request)
-                return
-
-        while True:
-            numPeer = random.randrange(0,len(self.unchokedPeers))
-            peer = self.unchokedPeers[numPeer]
-            if peer.hasPiece(index):
-                request = peer.build_request(index, offset, length)
-                peer.sendToPeer(request)
-                return
-        """

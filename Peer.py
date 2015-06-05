@@ -38,8 +38,6 @@ class Peer(object):
             9: self.portRequest
         }
 
-        self.blockCounter=5
-
         # Useful to set bitfield
         if torrent.length % torrent.pieceLength == 0:
             self.numberOfPieces = torrent.length / torrent.pieceLength
@@ -148,14 +146,12 @@ class Peer(object):
         pub.sendMessage('event.updatePeersBitfield',bitfield=self.bitField,peer=self)
 
     def request(self, payload):
-        self.blockCounter-=1
         piece_index = payload[:4]
         piece_offset = payload[4:8]
         piece_data = payload[8:]
         pub.sendMessage('event.PeerRequestsPiece',piece=(piece_index,piece_offset,piece_data))
 
     def piece(self, payload):
-        self.blockCounter+=1
         piece_index = utils.convertBytesToDecimal(payload[:4])
         piece_offset = utils.convertBytesToDecimal(payload[4:8])
         piece_data = payload[8:]
