@@ -29,8 +29,10 @@ class Torrent(object):
         else:
             self.announceList = [[self.torrentFile['announce']]]
 
+        print self.names
 
         self.length = self.torrentFile['info']['length']
+        print self.length
         self.pieceLength = self.torrentFile['info']['piece length']
         self.pieces = self.torrentFile['info']['pieces']
         self.info_hash = sha1_hash(str(

@@ -2,7 +2,6 @@ __author__ = 'alexisgallepe'
 
 import select
 import struct
-import random
 from threading import Thread
 from libs import utils
 from pubsub import pub
@@ -35,6 +34,13 @@ class PeersManager(Thread):
             if bitfield[i] == 1 and peer not in self.piecesByPeer[i][1] and not self.piecesByPeer[i][0] == "":
                 self.piecesByPeer[i][1].append(peer)
                 self.piecesByPeer[i][0] = len(self.piecesByPeer[i][1])
+
+    def getUnchokedPeer(self,index):
+        for peer in self.unchokedPeers:
+            if peer.getCounter() > 0 and peer.hasPiece(index):
+                return peer
+
+        return False
 
     def run(self):
         while True:
@@ -83,12 +89,12 @@ class PeersManager(Thread):
 
             self.peers.remove(peer)
 
-            if peer in self.unchokedPeers:
-                self.unchokedPeers.remove(peer)
+        if peer in self.unchokedPeers:
+            self.unchokedPeers.remove(peer)
 
-            for rarestPiece in self.rarestPieces.rarestPieces:
-                if peer in rarestPiece["peers"]:
-                    rarestPiece["peers"].remove(peer)
+        for rarestPiece in self.rarestPieces.rarestPieces:
+            if peer in rarestPiece["peers"]:
+                rarestPiece["peers"].remove(peer)
 
 
     def getPeerBySocket(self,socket):
@@ -99,7 +105,7 @@ class PeersManager(Thread):
         raise("peer not present in PeerList")
 
     def manageMessageReceived(self, peer):
-        while len(peer.readBuffer) > 3:
+        while len(peer.readBuffer) > 0:
             if peer.hasHandshaked == False:
                 peer.checkHandshake(peer.readBuffer)
                 return
@@ -134,8 +140,16 @@ class PeersManager(Thread):
                 return
             """
 
+    def incAllPeersCounter(self):
+        for peer in self.unchokedPeers:
+            peer.incCounter()
+
 
     def requestNewPiece(self,peer, pieceIndex,offset, length):
 
-        request = peer.build_request(pieceIndex, offset, length)
-        peer.sendToPeer(request)
+        if peer.getCounter() > 0:
+            request = peer.build_request(pieceIndex, offset, length)
+            peer.sendToPeer(request)
+            return True
+        else:
+            return False

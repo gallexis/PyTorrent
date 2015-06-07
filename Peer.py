@@ -6,13 +6,16 @@ import bitstring
 from bitstring import BitArray
 from pubsub import pub
 from libs import utils
+import threading
 
 class Peer(object):
     def __init__(self, torrent,ip, port=6881):
 
+        self.lock = threading.Lock()
         self.handshake = None
         self.hasHandshaked = False
         self.readBuffer = b""
+        self.counter = 10
         self.socket = None
         self.ip = ip
         self.port = port
@@ -81,6 +84,8 @@ class Peer(object):
         offset = struct.pack('>I', offset)
         length = struct.pack('>I', length)
         request = header + id + index + offset + length
+        self.decCounter()
+
         return request
 
     def build_bitfield(self):
@@ -113,10 +118,14 @@ class Peer(object):
             self.readBuffer = self.readBuffer[28 +len(info_hash)+20:]
 
     def keep_alive(self, payload):
-        keep_alive = struct.unpack("!I", payload[:4])[0]
-        if keep_alive == 0:
-            print('KEEP ALIVE')
-            return True
+        try:
+            keep_alive = struct.unpack("!I", payload[:4])[0]
+            if keep_alive == 0:
+                print('KEEP ALIVE')
+                return True
+        except:
+            pass
+
         return False
 
     def choke(self,payload=None):
@@ -152,9 +161,11 @@ class Peer(object):
         pub.sendMessage('event.PeerRequestsPiece',piece=(piece_index,piece_offset,piece_data))
 
     def piece(self, payload):
+
         piece_index = utils.convertBytesToDecimal(payload[:4])
         piece_offset = utils.convertBytesToDecimal(payload[4:8])
         piece_data = payload[8:]
+        self.incCounter()
         pub.sendMessage('event.Piece',piece=(piece_index,piece_offset,piece_data))
 
     def cancel(self, payload):
@@ -162,3 +173,25 @@ class Peer(object):
 
     def portRequest(self, payload):
         print('PORT REQUEST')
+
+    def incCounter(self):
+        self.lock.acquire()
+
+        if self.counter < 10:
+            self.counter+=1
+
+        self.lock.release()
+
+    def decCounter(self):
+        self.lock.acquire()
+
+        if self.counter > 0:
+            self.counter-=1
+
+        self.lock.release()
+
+    def getCounter(self):
+        self.lock.acquire()
+        cpt = self.counter
+        self.lock.release()
+        return cpt

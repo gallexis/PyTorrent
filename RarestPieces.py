@@ -12,7 +12,7 @@ class RarestPieces(object):
             peersByPieceIndex = {"idPiece":pieceNumber, "numberOfPeers":0, "peers":[]}
             self.rarestPieces.append(peersByPieceIndex)
 
-        pub.subscribe(self.peersBitfield, 'event.updatePeersBitfield')
+        #pub.subscribe(self.peersBitfield, 'event.updatePeersBitfield')
 
 
     def peersBitfield(self,bitfield=None,peer=None,pieceIndex=None):

@@ -1,4 +1,3 @@
-import random
 
 __author__ = 'alexisgallepe'
 
@@ -9,7 +8,6 @@ import PiecesManager
 import Torrent
 import Tracker
 
-
 class Run(object):
     def __init__(self):
         self.torrent = Torrent.Torrent("x.torrent")
@@ -18,53 +16,44 @@ class Run(object):
         self.piecesManager = PiecesManager.PiecesManager(self.torrent)
         self.peersManager = PeersManager.PeersManager(self.torrent,self.piecesManager)
 
-        print "Start manager"
+        print "Start peers manager"
         self.peersManager.start()
 
-        print "Start PeerChecker"
+        print "Start peer checker"
         self.peerSeeker.start()
 
-        print "Start PiecesManager"
+        print "Start pieces manager"
         self.piecesManager.start()
-
-    def run(self,structure,idPiece,numberOfPeers,quo):
-        if not self.piecesManager.pieces[idPiece].finished:
-            for i in range(numberOfPeers / quo):
-                alea =random.randrange(0,numberOfPeers)
-                print "alea", alea ,' np', (numberOfPeers)
-
-                try:
-                    peer=structure["peers"][alea]
-                except:
-                    print "BUG alea", alea ,' np', (numberOfPeers)
-                    continue
-
-                data = self.piecesManager.pieces[idPiece].getEmptyBlock()
-                if data:
-                    index, offset, length = data
-                    self.peersManager.requestNewPiece(peer,index, offset, length)
-
 
     def start(self):
         while not self.piecesManager.arePiecesCompleted():
             if len(self.peersManager.unchokedPeers) > 0:
 
-                piecesByRarestPiece = self.peersManager.rarestPieces.getSortedPieces()
+                for piece in self.piecesManager.pieces:
+                    if not piece.finished:
+                        index = piece.pieceIndex
 
-                str = piecesByRarestPiece.pop()
-                self.run(str,str["idPiece"],str["numberOfPeers"],1)
+                        peer = self.peersManager.getUnchokedPeer(index)
+                        if not peer:
+                            break
 
-                for structure in piecesByRarestPiece:
-                    idPiece = structure["idPiece"]
-                    numberOfPeers = structure["numberOfPeers"]
-                    self.run(structure,idPiece,numberOfPeers,2)
+                        data = self.piecesManager.pieces[index].getEmptyBlock()
+
+                        while data:
+                            index, offset, length = data
+                            if not self.peersManager.requestNewPiece(peer,index, offset, length):
+                                break
+
+                            data = self.piecesManager.pieces[index].getEmptyBlock()
+
+                self.peersManager.incAllPeersCounter()
 
                 ##########################
                 for piece in self.piecesManager.pieces:
                     for block in piece.blocks:
-                        if (int(time.time()) - block[3] ) > 10 and block[0] == "Pending" :
+                        if (int(time.time()) - block[3] ) > 8 and block[0] == "Pending" :
                             block[0] = "Free"
-                            block[3] = int(time.time())
+                            block[3] = 0
 
                 b=0
                 for i in range(self.piecesManager.numberOfPieces):
@@ -72,12 +61,10 @@ class Run(object):
                         if self.piecesManager.pieces[i].blocks[j][0]=="Full":
                             b+=len(self.piecesManager.pieces[i].blocks[j][2])
 
-                print "Nb peers: ",len(self.peersManager.unchokedPeers)," File: ",self.torrent.length,"Received: ",b
+                print "Number of peers: ",len(self.peersManager.unchokedPeers)," Completed: ",int((float(b) / self.torrent.length)*100),"%"
                 ##########################
 
-            #print len(self.peersManager.unchokedPeers)
             time.sleep(1)
-
 
         # if one file
         if len(self.torrent.names) > 1:

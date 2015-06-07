@@ -2,16 +2,17 @@ __author__ = 'alexisgallepe'
 
 import PiecesManager
 
+
 class FilesManager(object):
     def __init__(self, torrent):
         self.torrent = torrent
         self.allFilesCompleted = False
-        self.files= []
+        self.files = []
 
         # if one file
         if 'files' in torrent['info']:
             # nameFiles = torrent['files']['path']
-            raise('To be completed')
+            raise ('To be completed')
 
         else:
             fileName = torrent['info']['name']
@@ -24,7 +25,6 @@ class FilesManager(object):
                 file.doAction()
 
             self.checkIfAllFilesCompleted()
-
 
     def checkIfAllFilesCompleted(self):
         allFilesCompleted = True

@@ -68,6 +68,6 @@ class PiecesManager(Thread):
 
         self.piecesCompleted = True
         #self.createFile()
-        print "file completed"
+        print "File(s) downloaded"
         return True
 

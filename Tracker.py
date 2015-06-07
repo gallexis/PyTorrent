@@ -13,11 +13,15 @@ class Tracker(object):
     def getPeersFromTrackers(self):
         for tracker in self.torrent.announceList:
             if tracker[0][:4] == "http":
-                self.getPeersFromTracker(tracker[0])
+                try:
+                    self.getPeersFromTracker(tracker[0])
+                except:
+                    pass
             else:
-                rep = self.scrape_udp(self.torrent.info_hash, tracker[0], self.torrent.peer_id)
-                if not rep == "":
-                    self.parseTrackerResponse(rep)
+                try:
+                    self.scrape_udp(self.torrent.info_hash, tracker[0], self.torrent.peer_id)
+                except:
+                    pass
 
         if len(self.listPeers) <= 0: print "Error, no peer available"
         return self.listPeers
@@ -34,7 +38,6 @@ class Tracker(object):
         answerTracker = requests.get(tracker, params=params, timeout=3)
         lstPeers = bencode.bdecode(answerTracker.text)
         self.parseTrackerResponse(lstPeers['peers'])
-        print self.listPeers
 
     def parseTrackerResponse(self, peersByte):
         raw_bytes = [ord(c) for c in peersByte]
@@ -79,7 +82,7 @@ class Tracker(object):
         try:
             response = sock.recv(2048)
         except socket.timeout as err:
-            print err
+            #print err
             return
             #logging.debug(err)
             #logging.debug("Connecting again...")
@@ -95,14 +98,13 @@ class Tracker(object):
         return response
 
     def scrape_udp(self,info_hash, announce, peer_id):
-        print(announce)
         parsed = urlparse(announce)
         ip = socket.gethostbyname(parsed.hostname)
 
         if ip == '127.0.0.1':
             return False
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.settimeout(8)
+        sock.settimeout(3)
         conn = (ip, parsed.port)
         msg, trans_id, action = self.make_connection_id_request()
         response = self.send_msg(conn, sock, msg, trans_id, action, 16)
@@ -112,5 +114,7 @@ class Tracker(object):
         conn_id = response[8:]
         msg, trans_id, action = self.make_announce_input(info_hash, conn_id, peer_id)
         response = self.send_msg(conn, sock, msg, trans_id, action, 20)
+        if response == None or response == "":
+            return ""
 
-        return response[20:]
+        self.parseTrackerResponse(response[20:])

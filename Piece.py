@@ -20,17 +20,17 @@ class Piece(object):
         self.blocks = []
         self.initBlocks()
 
-    # TODO : add timestamp for pending blocks
     def initBlocks(self):
         self.blocks = []
-        tmpSize = self.pieceSize
+
         if self.num_blocks > 1:
             for i in range(self.num_blocks):
-                if self.pieceSize-BLOCK_SIZE > 0:
                     self.blocks.append(["Free", BLOCK_SIZE, b"",0])
-                    tmpSize-=BLOCK_SIZE
-                else:
-                    self.blocks.append(["Free", tmpSize, b"",0])
+
+            # Last block of last piece, the special block
+            if (self.pieceSize % BLOCK_SIZE) > 0:
+                self.blocks[self.num_blocks-1][1] = self.pieceSize % BLOCK_SIZE
+
         else:
             self.blocks.append(["Free", int(self.pieceSize), b"",0])
 
@@ -45,13 +45,13 @@ class Piece(object):
 
     def getEmptyBlock(self):
         if not self.isComplete():
-            idPiece = 0
+            blockIndex = 0
             for block in self.blocks:
                 if block[0] == "Free":
                     block[0] = "Pending"
                     block[3] = int(time.time())
-                    return self.pieceIndex, idPiece * BLOCK_SIZE, block[1]
-                idPiece+=1
+                    return self.pieceIndex, blockIndex * BLOCK_SIZE, block[1]
+                blockIndex+=1
 
         return False
 
@@ -72,7 +72,7 @@ class Piece(object):
         if self.isHashPieceCorrect(data):
             self.pieceData = data
             pub.sendMessage('event.PieceCompleted',pieceIndex=self.pieceIndex)
-            pub.sendMessage('event.updatePeersBitfield',pieceIndex=self.pieceIndex)
+            #pub.sendMessage('event.updatePeersBitfield',pieceIndex=self.pieceIndex)
             self.finished = True
             return True
         else:
