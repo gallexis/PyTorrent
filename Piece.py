@@ -2,12 +2,12 @@ __author__ = 'alexisgallepe'
 
 import math
 import time
+import logging
 
 from libs import utils
 from pubsub import pub
 
 BLOCK_SIZE = 2 ** 14
-
 
 class Piece(object):
     def __init__(self, pieceIndex, pieceSize, pieceHash):
@@ -15,6 +15,7 @@ class Piece(object):
         self.pieceSize = pieceSize
         self.pieceHash = pieceHash
         self.finished = False
+        self.files = []
         self.pieceData = b""
         self.num_blocks = int(math.ceil( float(pieceSize) / BLOCK_SIZE))
         self.blocks = []
@@ -72,7 +73,6 @@ class Piece(object):
         if self.isHashPieceCorrect(data):
             self.pieceData = data
             pub.sendMessage('event.PieceCompleted',pieceIndex=self.pieceIndex)
-            #pub.sendMessage('event.updatePeersBitfield',pieceIndex=self.pieceIndex)
             self.finished = True
             return True
         else:
@@ -88,9 +88,7 @@ class Piece(object):
         if utils.sha1_hash(data) == self.pieceHash:
             return True
         else:
-            print "error Piece Hash "
-            print utils.sha1_hash(data)
-            print self.pieceHash
-
+            logging.warning("Error Piece Hash")
+            logging.debug("{} : {}".format(utils.sha1_hash(data),self.pieceHash))
             self.initBlocks()
             return False

@@ -7,22 +7,23 @@ import PeerSeeker
 import PiecesManager
 import Torrent
 import Tracker
+import logging
 
 class Run(object):
     def __init__(self):
-        self.torrent = Torrent.Torrent("x.torrent")
+        self.torrent = Torrent.Torrent("w.torrent")
         self.tracker = Tracker.Tracker(self.torrent)
         self.peerSeeker = PeerSeeker.PeerSeeker(self.tracker, self.torrent)
         self.piecesManager = PiecesManager.PiecesManager(self.torrent)
         self.peersManager = PeersManager.PeersManager(self.torrent,self.piecesManager)
 
-        print "Start peers manager"
+        logging.info("Start peers manager")
         self.peersManager.start()
 
-        print "Start peer checker"
+        logging.info("Start peer checker")
         self.peerSeeker.start()
 
-        print "Start pieces manager"
+        logging.info("Start pieces manager")
         self.piecesManager.start()
 
     def start(self):
@@ -61,17 +62,8 @@ class Run(object):
                         if self.piecesManager.pieces[i].blocks[j][0]=="Full":
                             b+=len(self.piecesManager.pieces[i].blocks[j][2])
 
-                print "Number of peers: ",len(self.peersManager.unchokedPeers)," Completed: ",int((float(b) / self.torrent.length)*100),"%"
+                print( "Number of peers: ",len(self.peersManager.unchokedPeers)," Completed: ",int((float(b) / self.torrent.totalLength)*100),"%")
                 ##########################
 
             time.sleep(1)
 
-        # if one file
-        if len(self.torrent.names) > 1:
-            # nameFiles = torrent['files']['path']
-            raise('To be completed')
-
-        else:
-            fileName = self.torrent.names[0]
-            self.piecesManager.createFile(fileName)
-            print "File ",fileName,' created'

@@ -7,6 +7,7 @@ from bitstring import BitArray
 from pubsub import pub
 from libs import utils
 import threading
+import logging
 
 class Peer(object):
     def __init__(self, torrent,ip, port=6881):
@@ -41,18 +42,14 @@ class Peer(object):
             9: self.portRequest
         }
 
-        # Useful to set bitfield
-        if torrent.length % torrent.pieceLength == 0:
-            self.numberOfPieces = torrent.length / torrent.pieceLength
-        else:
-            self.numberOfPieces = (torrent.length / torrent.pieceLength) + 1
+        self.numberOfPieces = torrent.numberOfPieces
 
         self.bitField = bitstring.BitArray(self.numberOfPieces)
 
     def connectToPeer(self, timeout=10):
         try:
             self.socket = socket.create_connection((self.ip, self.port), timeout)
-            print "connected to peer ip: {} - port: {}".format(self.ip, self.port)
+            logging.info("connected to peer ip: {} - port: {}".format(self.ip, self.port))
             self.build_handshake()
 
             return True
@@ -99,7 +96,6 @@ class Peer(object):
         try:
             self.socket.send(msg)
         except:
-            #print "erreur fd"    !!!!!!!!!!!!!!!!!!!!!!
             pass
 
     def checkHandshake(self, buf, pstr="BitTorrent protocol"):
@@ -113,7 +109,7 @@ class Peer(object):
                 self.hasHandshaked = True
                 #self.sendToPeer(self.build_bitfield())
             else:
-                print 'error info_hash'
+                logging.warning("Error with peer's handshake")
 
             self.readBuffer = self.readBuffer[28 +len(info_hash)+20:]
 
@@ -121,7 +117,7 @@ class Peer(object):
         try:
             keep_alive = struct.unpack("!I", payload[:4])[0]
             if keep_alive == 0:
-                print('KEEP ALIVE')
+                logging.info('KEEP ALIVE')
                 return True
         except:
             pass
@@ -129,20 +125,20 @@ class Peer(object):
         return False
 
     def choke(self,payload=None):
-        print "choke"
+        logging.info('choke')
         self.state['peer_choking'] = True
 
     def unchoke(self,payload=None):
-        print "unchoke"
+        logging.info('unchoke')
         pub.sendMessage('event.peerUnchoked',peer=self)
         self.state['peer_choking'] = False
 
     def interested(self,payload=None):
-        #print "interested"
+        logging.info('interested')
         self.state['peer_interested'] = True
 
     def not_interested(self,payload=None):
-        #print "not interested"
+        logging.info('not_interested')
         self.state['peer_interested'] = False
 
     def have(self, payload):
@@ -169,10 +165,10 @@ class Peer(object):
         pub.sendMessage('event.Piece',piece=(piece_index,piece_offset,piece_data))
 
     def cancel(self, payload):
-        print "cancel"
+        logging.info('cancel')
 
     def portRequest(self, payload):
-        print('PORT REQUEST')
+        logging.info('portRequest')
 
     def incCounter(self):
         self.lock.acquire()
@@ -194,4 +190,5 @@ class Peer(object):
         self.lock.acquire()
         cpt = self.counter
         self.lock.release()
+
         return cpt

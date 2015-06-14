@@ -2,6 +2,7 @@ __author__ = 'alexisgallepe'
 
 import bencode
 import requests
+import logging
 import struct,random,socket
 from urlparse import urlparse
 
@@ -23,7 +24,9 @@ class Tracker(object):
                 except:
                     pass
 
-        if len(self.listPeers) <= 0: print "Error, no peer available"
+        if len(self.listPeers) <= 0:
+            logging.info("Error, no peer available")
+
         return self.listPeers
 
     def getPeersFromTracker(self, tracker):
@@ -48,7 +51,6 @@ class Tracker(object):
             port = raw_bytes[end - 2:end]
             port = port[1] + port[0] * 256
             self.listPeers.append([ip, port])
-
 
 
     def make_connection_id_request(self):
@@ -82,17 +84,16 @@ class Tracker(object):
         try:
             response = sock.recv(2048)
         except socket.timeout as err:
-            #print err
+            logging.debug(err)
             return
-            #logging.debug(err)
             #logging.debug("Connecting again...")
-            return self.send_msg(conn, sock, msg, trans_id, action, size)
+            #return self.send_msg(conn, sock, msg, trans_id, action, size)
         if len(response) < size:
-            #logging.debug("Did not get full message. Connecting again...")
+            logging.debug("Did not get full message. Connecting again...")
             return self.send_msg(conn, sock, msg, trans_id, action, size)
 
         if action != response[0:4] or trans_id != response[4:8]:
-            #logging.debug("Transaction or Action ID did not match. Trying again...")
+            logging.debug("Transaction or Action ID did not match. Trying again...")
             return self.send_msg(conn, sock, msg, trans_id, action, size)
 
         return response

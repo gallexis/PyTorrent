@@ -6,6 +6,7 @@ from threading import Thread
 from libs import utils
 from pubsub import pub
 import RarestPieces
+import logging
 
 class PeersManager(Thread):
     def __init__(self, torrent,piecesManager):
@@ -120,8 +121,8 @@ class PeersManager(Thread):
             try:
                 msgCode = int(ord(peer.readBuffer[4:5]))
                 payload = peer.readBuffer[5:4 + msgLength]
-            except Exception, e:
-                print e
+            except Exception as e:
+                logging.info(e)
                 return
 
             # Message is not complete. Return
