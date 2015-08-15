@@ -1,7 +1,7 @@
 # Created by .ignore support plugin (hsz.mobi)
 
 # Torrent files
-.torrent
+*.torrent
 
 # IntelliJ project files
 .idea
