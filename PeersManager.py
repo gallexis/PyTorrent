@@ -8,8 +8,9 @@ from pubsub import pub
 import RarestPieces
 import logging
 
+
 class PeersManager(Thread):
-    def __init__(self, torrent,piecesManager):
+    def __init__(self, torrent, piecesManager):
         Thread.__init__(self)
         self.peers = []
         self.unchokedPeers = []
@@ -19,16 +20,16 @@ class PeersManager(Thread):
 
         self.piecesByPeer = []
         for i in range(self.piecesManager.numberOfPieces):
-            self.piecesByPeer.append([0,[]])
+            self.piecesByPeer.append([0, []])
 
         # Events
         pub.subscribe(self.addPeer, 'event.newPeer')
         pub.subscribe(self.addUnchokedPeer, 'event.peerUnchoked')
         pub.subscribe(self.peersBitfield, 'event.updatePeersBitfield')
 
-    def peersBitfield(self,bitfield=None,peer=None,pieceIndex=None):
+    def peersBitfield(self, bitfield=None, peer=None, pieceIndex=None):
         if not pieceIndex == None:
-            self.piecesByPeer[pieceIndex] = ["",[]]
+            self.piecesByPeer[pieceIndex] = ["", []]
             return
 
         for i in range(len(self.piecesByPeer)):
@@ -36,9 +37,9 @@ class PeersManager(Thread):
                 self.piecesByPeer[i][1].append(peer)
                 self.piecesByPeer[i][0] = len(self.piecesByPeer[i][1])
 
-    def getUnchokedPeer(self,index):
+    def getUnchokedPeer(self, index):
         for peer in self.unchokedPeers:
-            if peer.getCounter() > 0 and peer.hasPiece(index):
+            if peer.hasPiece(index):
                 return peer
 
         return False
@@ -97,13 +98,12 @@ class PeersManager(Thread):
             if peer in rarestPiece["peers"]:
                 rarestPiece["peers"].remove(peer)
 
-
-    def getPeerBySocket(self,socket):
+    def getPeerBySocket(self, socket):
         for peer in self.peers:
             if socket == peer.socket:
                 return peer
 
-        raise("peer not present in PeerList")
+        raise ("peer not present in PeerList")
 
     def manageMessageReceived(self, peer):
         while len(peer.readBuffer) > 0:
@@ -117,7 +117,7 @@ class PeersManager(Thread):
             if peer.keep_alive(peer.readBuffer):
                 return
 
-            #len 0
+            # len 0
             try:
                 msgCode = int(ord(peer.readBuffer[4:5]))
                 payload = peer.readBuffer[5:4 + msgLength]
@@ -131,26 +131,12 @@ class PeersManager(Thread):
 
             peer.readBuffer = peer.readBuffer[msgLength + 4:]
 
-            peer.idFunction[msgCode](payload)
-
-            """
             try:
                 peer.idFunction[msgCode](payload)
             except Exception, e:
-                print "error id:", msgCode," ->", e
+                logging.debug("error id:", msgCode, " ->", e)
                 return
-            """
 
-    def incAllPeersCounter(self):
-        for peer in self.unchokedPeers:
-            peer.incCounter()
-
-
-    def requestNewPiece(self,peer, pieceIndex,offset, length):
-
-        if peer.getCounter() > 0:
-            request = peer.build_request(pieceIndex, offset, length)
-            peer.sendToPeer(request)
-            return True
-        else:
-            return False
+    def requestNewPiece(self, peer, pieceIndex, offset, length):
+        request = peer.build_request(pieceIndex, offset, length)
+        peer.sendToPeer(request)

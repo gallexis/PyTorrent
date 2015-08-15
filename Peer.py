@@ -81,7 +81,6 @@ class Peer(object):
         offset = struct.pack('>I', offset)
         length = struct.pack('>I', length)
         request = header + id + index + offset + length
-        self.decCounter()
 
         return request
 
@@ -157,38 +156,14 @@ class Peer(object):
         pub.sendMessage('event.PeerRequestsPiece',piece=(piece_index,piece_offset,piece_data))
 
     def piece(self, payload):
-
         piece_index = utils.convertBytesToDecimal(payload[:4])
         piece_offset = utils.convertBytesToDecimal(payload[4:8])
         piece_data = payload[8:]
-        self.incCounter()
         pub.sendMessage('event.Piece',piece=(piece_index,piece_offset,piece_data))
 
-    def cancel(self, payload):
+    def cancel(self, payload=None):
         logging.info('cancel')
 
-    def portRequest(self, payload):
+    def portRequest(self, payload=None):
         logging.info('portRequest')
 
-    def incCounter(self):
-        self.lock.acquire()
-
-        if self.counter < 10:
-            self.counter+=1
-
-        self.lock.release()
-
-    def decCounter(self):
-        self.lock.acquire()
-
-        if self.counter > 0:
-            self.counter-=1
-
-        self.lock.release()
-
-    def getCounter(self):
-        self.lock.acquire()
-        cpt = self.counter
-        self.lock.release()
-
-        return cpt

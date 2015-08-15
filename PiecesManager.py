@@ -57,25 +57,12 @@ class PiecesManager(Thread):
 
     def arePiecesCompleted(self):
         for piece in self.pieces:
-            if not piece.isComplete():
+            if not piece.finished:
                 return False
 
         self.piecesCompleted = True
         logging.info("File(s) downloaded")
         return True
-
-    def createFiles(self):
-        if len(self.torrent.fileNames) > 1:
-            pass
-
-        else:
-            fd = open(self.torrent.fileNames[0]["path"], "wb")
-            data = b""
-            for piece in self.pieces:
-                data += piece.assembleData()
-
-            fd.write(data)
-
 
     def getFiles(self):
         files = []
@@ -84,19 +71,22 @@ class PiecesManager(Thread):
         for f in self.torrent.fileNames:
 
             tmpSizeFile = f["length"]
+            fileOffset = 0
             while tmpSizeFile > 0:
                 idPiece = offset / self.torrent.pieceLength
                 pieceSize = self.pieces[idPiece].pieceSize
 
                 if tmpSizeFile - pieceSize < 0:
-                    file = {"length":tmpSizeFile,"idPiece":idPiece ,"start":offset, "fileDescriptor":f["fd"]}
+                    file = {"length":tmpSizeFile,"idPiece":idPiece ,"start":fileOffset, "path":f["path"]}
                     offset += tmpSizeFile
+                    fileOffset += tmpSizeFile
                     tmpSizeFile = 0
 
                 else:
                     tmpSizeFile -= pieceSize
-                    file = {"length":pieceSize,"idPiece":idPiece ,"start":offset, "fileDescriptor":f["fd"]}
+                    file = {"length":pieceSize,"idPiece":idPiece ,"start":fileOffset, "path":f["path"]}
                     offset += pieceSize
+                    fileOffset += pieceSize
 
                 files.append(file)
         return files

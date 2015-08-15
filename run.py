@@ -11,7 +11,7 @@ import logging
 
 class Run(object):
     def __init__(self):
-        self.torrent = Torrent.Torrent("w.torrent")
+        self.torrent = Torrent.Torrent("i.torrent")
         self.tracker = Tracker.Tracker(self.torrent)
         self.peerSeeker = PeerSeeker.PeerSeeker(self.tracker, self.torrent)
         self.piecesManager = PiecesManager.PiecesManager(self.torrent)
@@ -27,34 +27,32 @@ class Run(object):
         self.piecesManager.start()
 
     def start(self):
+        old=0.0
+
         while not self.piecesManager.arePiecesCompleted():
             if len(self.peersManager.unchokedPeers) > 0:
 
                 for piece in self.piecesManager.pieces:
                     if not piece.finished:
-                        index = piece.pieceIndex
+                        pieceIndex = piece.pieceIndex
 
-                        peer = self.peersManager.getUnchokedPeer(index)
+                        peer = self.peersManager.getUnchokedPeer(pieceIndex)
                         if not peer:
-                            break
+                            continue
 
-                        data = self.piecesManager.pieces[index].getEmptyBlock()
+                        data = self.piecesManager.pieces[pieceIndex].getEmptyBlock()
 
-                        while data:
+                        if data:
                             index, offset, length = data
-                            if not self.peersManager.requestNewPiece(peer,index, offset, length):
-                                break
+                            self.peersManager.requestNewPiece(peer,index, offset, length)
 
-                            data = self.piecesManager.pieces[index].getEmptyBlock()
-
-                self.peersManager.incAllPeersCounter()
+                        piece.isComplete()
 
                 ##########################
-                for piece in self.piecesManager.pieces:
-                    for block in piece.blocks:
-                        if (int(time.time()) - block[3] ) > 8 and block[0] == "Pending" :
-                            block[0] = "Free"
-                            block[3] = 0
+                        for block in piece.blocks:
+                            if ( int(time.time()) - block[3] ) > 8 and block[0] == "Pending" :
+                                block[0] = "Free"
+                                block[3] = 0
 
                 b=0
                 for i in range(self.piecesManager.numberOfPieces):
@@ -62,8 +60,9 @@ class Run(object):
                         if self.piecesManager.pieces[i].blocks[j][0]=="Full":
                             b+=len(self.piecesManager.pieces[i].blocks[j][2])
 
-                print( "Number of peers: ",len(self.peersManager.unchokedPeers)," Completed: ",int((float(b) / self.torrent.totalLength)*100),"%")
-                ##########################
+                print "Number of peers: ",len(self.peersManager.unchokedPeers)," Completed: ",float((float(b) / self.torrent.totalLength)*100),"%"
 
-            time.sleep(1)
 
+               ##########################
+
+            time.sleep(0.1)

@@ -40,28 +40,29 @@ class Torrent(object):
     def getFiles(self):
         root = self.torrentFile['info']['name']
 
-        if not os.path.exists(root):
-            os.mkdir(root, 0766 )
-
         if 'files' in self.torrentFile['info']:
-            for file in self.torrentFile['info']['files']:
-                pathFile = root+'/'+file["path"][0]
-                fd = open(pathFile, "wb")
+            if not os.path.exists(root):
+                os.mkdir(root, 0766 )
 
-                self.fileNames.append({"path":pathFile , "length":file["length"],"fd":fd})
+            for file in self.torrentFile['info']['files']:
+                pathFile = os.path.join(root, *file["path"])
+
+                if not os.path.exists(os.path.dirname(pathFile)):
+                    os.makedirs(os.path.dirname(pathFile))
+
+                self.fileNames.append({"path": pathFile , "length": file["length"]})
                 self.totalLength += file["length"]
 
         else:
-            self.fileNames.append({"path":root , "length":self.torrentFile['info']['length']})
+            self.fileNames.append({"path": root , "length": self.torrentFile['info']['length']})
             self.totalLength = self.torrentFile['info']['length']
 
     def getTrakers(self):
         if 'announce-list' in self.torrentFile:
             return self.torrentFile['announce-list']
         else:
-            return [[self.torrentFile['announce']]]
+            return [[ self.torrentFile['announce'] ]]
 
     def generatePeerId(self):
         seed = str(time.time())
         return sha1_hash(seed)
-

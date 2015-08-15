@@ -36,16 +36,19 @@ class Piece(object):
             self.blocks.append(["Free", int(self.pieceSize), b"",0])
 
     def setBlock(self, offset, data):
-        if offset == 0:
-            index = 0
-        else:
-            index = offset / BLOCK_SIZE
+        if not self.finished:
+            if offset == 0:
+                index = 0
+            else:
+                index = offset / BLOCK_SIZE
 
-        self.blocks[index][2] = data
-        self.blocks[index][0] = "Full"
+            self.blocks[index][2] = data
+            self.blocks[index][0] = "Full"
+
+            self.isComplete()
 
     def getEmptyBlock(self):
-        if not self.isComplete():
+        if not self.finished:
             blockIndex = 0
             for block in self.blocks:
                 if block[0] == "Free":
@@ -63,6 +66,7 @@ class Piece(object):
         return False
 
     def isComplete(self):
+
         # If there is at least one block Free|Pending -> Piece not complete -> return false
         for block in self.blocks:
             if block[0] == "Free" or block[0] == "Pending":
@@ -71,12 +75,35 @@ class Piece(object):
         # Before returning True, we must check if hashes match
         data = self.assembleData()
         if self.isHashPieceCorrect(data):
-            self.pieceData = data
-            pub.sendMessage('event.PieceCompleted',pieceIndex=self.pieceIndex)
             self.finished = True
+            self.pieceData = data
+            self.writeFilesOnDisk()
+            pub.sendMessage('event.PieceCompleted',pieceIndex=self.pieceIndex)
             return True
+
         else:
             return False
+
+    def writeFunction(self,pathFile,data,offset):
+        try:
+            f = open(pathFile,'r+b')
+        except IOError:
+            f = open(pathFile,'wb')
+        f.seek(offset)
+        f.write(data)
+        f.close()
+
+    def writeFilesOnDisk(self):
+        buf=0
+        for file in self.files:
+            pathFile = file["path"]
+            offset = file["start"]
+            length = file["length"]
+
+            print self.pieceIndex,' : ',offset,' : ',length+offset
+            self.writeFunction(pathFile,self.pieceData[buf:length],offset)
+            buf += length
+
 
     def assembleData(self):
         buf = b""
