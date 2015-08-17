@@ -27,7 +27,7 @@ class Run(object):
         self.piecesManager.start()
 
     def start(self):
-        old=0.0
+        old=0
 
         while not self.piecesManager.arePiecesCompleted():
             if len(self.peersManager.unchokedPeers) > 0:
@@ -60,8 +60,12 @@ class Run(object):
                         if self.piecesManager.pieces[i].blocks[j][0]=="Full":
                             b+=len(self.piecesManager.pieces[i].blocks[j][2])
 
-                print "Number of peers: ",len(self.peersManager.unchokedPeers)," Completed: ",float((float(b) / self.torrent.totalLength)*100),"%"
 
+                if b == old:
+                    continue
+
+                old = b
+                print "Number of peers: ",len(self.peersManager.unchokedPeers)," Completed: ",float((float(b) / self.torrent.totalLength)*100),"%"
 
                ##########################
 

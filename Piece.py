@@ -94,15 +94,13 @@ class Piece(object):
         f.close()
 
     def writeFilesOnDisk(self):
-        buf=0
         for file in self.files:
             pathFile = file["path"]
-            offset = file["start"]
+            fileOffset = file["fileOffset"]
+            pieceOffset = file["pieceOffset"]
             length = file["length"]
 
-            print self.pieceIndex,' : ',offset,' : ',length+offset
-            self.writeFunction(pathFile,self.pieceData[buf:length],offset)
-            buf += length
+            self.writeFunction(pathFile,self.pieceData[pieceOffset:pieceOffset+length],fileOffset)
 
 
     def assembleData(self):

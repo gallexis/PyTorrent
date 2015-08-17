@@ -22,9 +22,7 @@ class PiecesManager(Thread):
         for file in self.files:
             idPiece = file['idPiece']
             self.pieces[idPiece].files.append(file)
-
-        for p in self.pieces:
-            print p.files
+            print file
 
         # Create events
         pub.subscribe(self.receiveBlockPiece, 'event.Piece')
@@ -66,27 +64,31 @@ class PiecesManager(Thread):
 
     def getFiles(self):
         files = []
-        offset = 0
+        pieceOffset = 0
+        pieceSizeUsed = 0
 
         for f in self.torrent.fileNames:
 
-            tmpSizeFile = f["length"]
+            currentSizeFile = f["length"]
             fileOffset = 0
-            while tmpSizeFile > 0:
-                idPiece = offset / self.torrent.pieceLength
-                pieceSize = self.pieces[idPiece].pieceSize
 
-                if tmpSizeFile - pieceSize < 0:
-                    file = {"length":tmpSizeFile,"idPiece":idPiece ,"start":fileOffset, "path":f["path"]}
-                    offset += tmpSizeFile
-                    fileOffset += tmpSizeFile
-                    tmpSizeFile = 0
+            while  currentSizeFile > 0:
+                idPiece = pieceOffset / self.torrent.pieceLength
+                pieceSize = self.pieces[idPiece].pieceSize - pieceSizeUsed
+
+                if currentSizeFile - pieceSize < 0:
+                    file = {"length": currentSizeFile,"idPiece":idPiece ,"fileOffset":fileOffset, "pieceOffset":pieceSizeUsed ,"path":f["path"]}
+                    pieceOffset +=  currentSizeFile
+                    fileOffset +=  currentSizeFile
+                    pieceSizeUsed += currentSizeFile
+                    currentSizeFile = 0
 
                 else:
-                    tmpSizeFile -= pieceSize
-                    file = {"length":pieceSize,"idPiece":idPiece ,"start":fileOffset, "path":f["path"]}
-                    offset += pieceSize
+                    currentSizeFile -= pieceSize
+                    file = {"length":pieceSize,"idPiece":idPiece ,"fileOffset":fileOffset,"pieceOffset":pieceSizeUsed , "path":f["path"]}
+                    pieceOffset += pieceSize
                     fileOffset += pieceSize
+                    pieceSizeUsed = 0
 
                 files.append(file)
         return files
