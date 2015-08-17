@@ -5,42 +5,60 @@ import requests
 import logging
 import struct,random,socket
 from urlparse import urlparse
+import threading,time
+
+class FuncThread(threading.Thread):
+    def __init__(self, target, *args):
+        self._target = target
+        self._args = args
+        threading.Thread.__init__(self)
+
+    def run(self):
+        self._target(*self._args)
 
 class Tracker(object):
     def __init__(self, torrent):
         self.torrent = torrent
         self.listPeers = []
+        self.lstThreads =  []
 
     def getPeersFromTrackers(self):
         for tracker in self.torrent.announceList:
+            time.sleep(0.2)
             if tracker[0][:4] == "http":
-                try:
-                    self.getPeersFromTracker(tracker[0])
-                except:
-                    pass
+                t1 = FuncThread(self.getPeersFromTracker, self.torrent,tracker[0])
+                self.lstThreads.append(t1)
+                t1.start()
             else:
-                try:
-                    self.scrape_udp(self.torrent.info_hash, tracker[0], self.torrent.peer_id)
-                except:
-                    pass
+                t2 = FuncThread(self.scrape_udp, self.torrent, tracker[0])
+                self.lstThreads.append(t2)
+                t2.start()
+
+        for t in self.lstThreads:
+            t.join()
 
         if len(self.listPeers) <= 0:
             logging.info("Error, no peer available")
 
+
         return self.listPeers
 
-    def getPeersFromTracker(self, tracker):
+    def getPeersFromTracker(self, torrent, tracker):
+
         params = {
-            'info_hash': self.torrent.info_hash,
-            'peer_id': self.torrent.peer_id,
+            'info_hash': torrent.info_hash,
+            'peer_id': torrent.peer_id,
             'uploaded': 0,
             'downloaded': 0,
-            'left': self.torrent.length,
+            'left': torrent.totalLength,
             'event': 'started'
         }
-        answerTracker = requests.get(tracker, params=params, timeout=3)
-        lstPeers = bencode.bdecode(answerTracker.text)
-        self.parseTrackerResponse(lstPeers['peers'])
+        try:
+            answerTracker = requests.get(tracker, params=params, timeout=3)
+            lstPeers = bencode.bdecode(answerTracker.text)
+            self.parseTrackerResponse(lstPeers['peers'])
+        except:
+            pass
 
     def parseTrackerResponse(self, peersByte):
         raw_bytes = [ord(c) for c in peersByte]
@@ -98,24 +116,27 @@ class Tracker(object):
 
         return response
 
-    def scrape_udp(self,info_hash, announce, peer_id):
-        parsed = urlparse(announce)
-        ip = socket.gethostbyname(parsed.hostname)
+    def scrape_udp(self,torrent, announce):
+        try:
+            parsed = urlparse(announce)
+            ip = socket.gethostbyname(parsed.hostname)
 
-        if ip == '127.0.0.1':
-            return False
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.settimeout(3)
-        conn = (ip, parsed.port)
-        msg, trans_id, action = self.make_connection_id_request()
-        response = self.send_msg(conn, sock, msg, trans_id, action, 16)
-        if response == None:
-            return ""
+            if ip == '127.0.0.1':
+                return False
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.settimeout(3)
+            conn = (ip, parsed.port)
+            msg, trans_id, action = self.make_connection_id_request()
+            response = self.send_msg(conn, sock, msg, trans_id, action, 16)
+            if response == None:
+                return ""
 
-        conn_id = response[8:]
-        msg, trans_id, action = self.make_announce_input(info_hash, conn_id, peer_id)
-        response = self.send_msg(conn, sock, msg, trans_id, action, 20)
-        if response == None or response == "":
-            return ""
+            conn_id = response[8:]
+            msg, trans_id, action = self.make_announce_input(torrent.info_hash, conn_id, torrent.peer_id)
+            response = self.send_msg(conn, sock, msg, trans_id, action, 20)
+            if response == None or response == "":
+                return ""
 
-        self.parseTrackerResponse(response[20:])
+            self.parseTrackerResponse(response[20:])
+        except:
+            pass

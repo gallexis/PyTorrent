@@ -11,7 +11,7 @@ import logging
 
 class Run(object):
     def __init__(self):
-        self.torrent = Torrent.Torrent("i.torrent")
+        self.torrent = Torrent.Torrent("s.torrent")
         self.tracker = Tracker.Tracker(self.torrent)
         self.peerSeeker = PeerSeeker.PeerSeeker(self.tracker, self.torrent)
         self.piecesManager = PiecesManager.PiecesManager(self.torrent)
