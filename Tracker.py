@@ -17,10 +17,11 @@ class FuncThread(threading.Thread):
         self._target(*self._args)
 
 class Tracker(object):
-    def __init__(self, torrent):
+    def __init__(self, torrent, newpeersQueue):
         self.torrent = torrent
-        self.listPeers = []
         self.lstThreads =  []
+        self.newpeersQueue = newpeersQueue
+        self.getPeersFromTrackers()
 
     def getPeersFromTrackers(self):
         for tracker in self.torrent.announceList:
@@ -37,11 +38,6 @@ class Tracker(object):
         for t in self.lstThreads:
             t.join()
 
-        if len(self.listPeers) <= 0:
-            logging.info("Error, no peer available")
-
-
-        return self.listPeers
 
     def getPeersFromTracker(self, torrent, tracker):
 
@@ -68,7 +64,7 @@ class Tracker(object):
             ip = ".".join(str(i) for i in raw_bytes[start:end - 2])
             port = raw_bytes[end - 2:end]
             port = port[1] + port[0] * 256
-            self.listPeers.append([ip, port])
+            self.newpeersQueue.put([ip, port])
 
 
     def make_connection_id_request(self):

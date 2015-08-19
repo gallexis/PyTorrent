@@ -8,23 +8,26 @@ import PiecesManager
 import Torrent
 import Tracker
 import logging
+import Queue
 
 class Run(object):
     def __init__(self):
-        self.torrent = Torrent.Torrent("s.torrent")
-        self.tracker = Tracker.Tracker(self.torrent)
-        self.peerSeeker = PeerSeeker.PeerSeeker(self.tracker, self.torrent)
+        newpeersQueue = Queue.Queue()
+
+        self.torrent = Torrent.Torrent("w.torrent")
+        self.tracker = Tracker.Tracker(self.torrent,newpeersQueue)
+        self.peerSeeker = PeerSeeker.PeerSeeker(newpeersQueue, self.torrent)
         self.piecesManager = PiecesManager.PiecesManager(self.torrent)
         self.peersManager = PeersManager.PeersManager(self.torrent,self.piecesManager)
 
-        logging.info("Start peers manager")
         self.peersManager.start()
+        logging.info("Peers-manager Started")
 
-        logging.info("Start peer checker")
         self.peerSeeker.start()
+        logging.info("Peer-seeker Started")
 
-        logging.info("Start pieces manager")
         self.piecesManager.start()
+        logging.info("Pieces-manager Started")
 
     def start(self):
         old=0
