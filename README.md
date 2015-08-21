@@ -10,13 +10,13 @@ I wanted to make my own to learn how does BitTorrent protocol works and improve 
 It is almost written from scratch, python 2.7 without twisted.
 Only the pubsub library was used to create events, when a new peer is connected, or when data is received from a peer.
 
-The tool is not really powerfull but it does its job, you can :
+This tool needs a lot of improvements, but it does its job, you can :
 -	Read a torrent file
--	Scrape any udp or http tracker
+-	Scrape udp or http trackers
 -	Connect to peers
 -	Ask them for the blocks you want
 -	Save a block in RAM, and when a piece is completed, compare the hash and write this piece into you hard drive
--	Deal with the one file or multifiles torrents
+-	Deal with the one-file or multi-files torrents
 
 But you can’t :
 -	Download more than one torrent at a time
