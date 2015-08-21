@@ -1,5 +1,5 @@
 ==========
-PyTorrent - Python BitTorrent tool
+PyTorrent - Python BitTorrent
 ==========
 
 PyTorrent is a cli tool that download files from the BitTorrent network.
