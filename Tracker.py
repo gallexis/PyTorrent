@@ -25,9 +25,8 @@ class Tracker(object):
 
     def getPeersFromTrackers(self):
         for tracker in self.torrent.announceList:
-            time.sleep(0.2)
             if tracker[0][:4] == "http":
-                t1 = FuncThread(self.getPeersFromTracker, self.torrent,tracker[0])
+                t1 = FuncThread(self.scrapeHTTP, self.torrent,tracker[0])
                 self.lstThreads.append(t1)
                 t1.start()
             else:
@@ -39,7 +38,7 @@ class Tracker(object):
             t.join()
 
 
-    def getPeersFromTracker(self, torrent, tracker):
+    def scrapeHTTP(self, torrent, tracker):
 
         params = {
             'info_hash': torrent.info_hash,

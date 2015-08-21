@@ -14,8 +14,9 @@ class Run(object):
     def __init__(self):
         newpeersQueue = Queue.Queue()
 
-        self.torrent = Torrent.Torrent("w.torrent")
+        self.torrent = Torrent.Torrent("o.torrent")
         self.tracker = Tracker.Tracker(self.torrent,newpeersQueue)
+
         self.peerSeeker = PeerSeeker.PeerSeeker(newpeersQueue, self.torrent)
         self.piecesManager = PiecesManager.PiecesManager(self.torrent)
         self.peersManager = PeersManager.PeersManager(self.torrent,self.piecesManager)
