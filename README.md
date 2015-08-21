@@ -40,7 +40,7 @@ All you need to do is pass in a valid torrent file:`
 ###Sources :
 
 I wouldn't go this far without the help of
-[Lita] (https://github.com/lita/bittorrent "Lita")
+[Lita] (https://github.com/lita/bittorrent "Lita"), 
 [Kristen Widman's blog] (http://www.kristenwidman.com/blog/how-to-write-a-bittorrent-client-part-1 "Kristen Widman's blog") and
 [Bittorrent Unofficial Spec] (https://wiki.theory.org/BitTorrentSpecification "Bittorrent Unofficial Spec"), so thank you.
 
