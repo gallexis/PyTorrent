@@ -15,7 +15,7 @@ This tool needs a lot of improvements, but it does its job, you can :
 -	Scrape udp or http trackers
 -	Connect to peers
 -	Ask them for the blocks you want
--	Save a block in RAM, and when a piece is completed, compare the hash and write this piece into you hard drive
+-	Save a block in RAM, and when a piece is completed and checked, write the data into you hard drive
 -	Deal with the one-file or multi-files torrents
 
 But you can’t :
@@ -26,6 +26,9 @@ But you can’t :
 
 You can ask me questions if you need help, or send me a pull request for new features or improvements.
 
+###Todo
+- Resume a download stopped
+- Leech or Seed to other peers
 
 ###Installation
 You can run the following command to install the dependencies using pip
@@ -33,7 +36,7 @@ You can run the following command to install the dependencies using pip
 `pip install -r requirements.txt`
 
 ###Running the program
-All you need to do is pass in a valid torrent file:`
+You can only pass one torrent file
 
 `python run.py <your torrent file>`
 
