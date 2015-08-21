@@ -24,7 +24,7 @@ But you can’t :
 -	Benefit of a good algorithm to ask your peers for blocks (like the rarest piece algo)
 -	And a lot of other things
 
-You can ask me questions if you need help, or send me a pull request for new features or improvements.
+Don't hesitate to ask me questions if you need help, or send me a pull request for new features or improvements.
 
 ###Todo
 - Resume a download stopped
