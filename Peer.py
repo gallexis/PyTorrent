@@ -58,6 +58,9 @@ class Peer(object):
 
         return False
 
+    def hasPiece(self,index):
+        return self.bitField[index]
+
     def build_handshake(self):
         pstr = "BitTorrent protocol"
         reserved = "0" * 8
@@ -71,8 +74,13 @@ class Peer(object):
         assert len(hs) == 49 + len(pstr)
         self.handshake = hs
 
-    def hasPiece(self,index):
-        return self.bitField[index]
+    def build_interested(self):
+        header = struct.pack('>I', 13)
+        id = '\x06'
+        interested = header+id
+
+        return interested
+
 
     def build_request(self, index, offset, length):
         header = struct.pack('>I', 13)
@@ -83,6 +91,16 @@ class Peer(object):
         request = header + id + index + offset + length
 
         return request
+
+    def build_piece(self, index, offset, data):
+        header = struct.pack('>I', 13)
+        id = '\x07'
+        index = struct.pack('>I', index)
+        offset = struct.pack('>I', offset)
+        data = struct.pack('>I', data)
+        piece = header + id + index + offset + data
+
+        return piece
 
     def build_bitfield(self):
         length = struct.pack('>I', 4)
@@ -129,7 +147,7 @@ class Peer(object):
 
     def unchoke(self,payload=None):
         logging.info('unchoke')
-        pub.sendMessage('event.peerUnchoked',peer=self)
+        pub.sendMessage('PeersManager.peerUnchoked',peer=self)
         self.state['peer_choking'] = False
 
     def interested(self,payload=None):
@@ -143,23 +161,25 @@ class Peer(object):
     def have(self, payload):
         index = utils.convertBytesToDecimal(payload)
         self.bitField[index] = True
-        pub.sendMessage('event.updatePeersBitfield',bitfield=self.bitField,peer=self)
+        pub.sendMessage('RarestPiece.updatePeersBitfield',bitfield=self.bitField,peer=self)
 
     def bitfield(self, payload):
         self.bitField = BitArray(bytes=payload)
-        pub.sendMessage('event.updatePeersBitfield',bitfield=self.bitField,peer=self)
+        logging.info('request')
+        pub.sendMessage('RarestPiece.updatePeersBitfield',bitfield=self.bitField,peer=self)
 
     def request(self, payload):
         piece_index = payload[:4]
-        piece_offset = payload[4:8]
-        piece_data = payload[8:]
-        pub.sendMessage('event.PeerRequestsPiece',piece=(piece_index,piece_offset,piece_data))
+        block_offset = payload[4:8]
+        block_length = payload[8:]
+        logging.info('request')
+        pub.sendMessage('PiecesManager.PeerRequestsPiece',piece=(piece_index,block_offset,block_length), peer=self)
 
     def piece(self, payload):
         piece_index = utils.convertBytesToDecimal(payload[:4])
         piece_offset = utils.convertBytesToDecimal(payload[4:8])
         piece_data = payload[8:]
-        pub.sendMessage('event.Piece',piece=(piece_index,piece_offset,piece_data))
+        pub.sendMessage('PiecesManager.Piece',piece=(piece_index,piece_offset,piece_data))
 
     def cancel(self, payload=None):
         logging.info('cancel')

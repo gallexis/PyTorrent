@@ -25,9 +25,8 @@ class PiecesManager(Thread):
             print file
 
         # Create events
-        pub.subscribe(self.receiveBlockPiece, 'event.Piece')
-        pub.subscribe(self.handlePeerRequests, 'event.PeerRequestsPiece')
-        pub.subscribe(self.updateBitfield, 'event.PieceCompleted')
+        pub.subscribe(self.receiveBlockPiece, 'PiecesManager.Piece')
+        pub.subscribe(self.updateBitfield, 'PiecesManager.PieceCompleted')
 
     def updateBitfield(self,pieceIndex):
         self.bitfield[pieceIndex] = 1
@@ -36,8 +35,6 @@ class PiecesManager(Thread):
         piece_index,piece_offset,piece_data = piece
         self.pieces[int(piece_index)].setBlock(piece_offset,piece_data)
 
-    def handlePeerRequests(self,piece):
-        piece_index,piece_offset,piece_data = piece
 
     def generatePieces(self):
         pieces = []
@@ -92,3 +89,16 @@ class PiecesManager(Thread):
 
                 files.append(file)
         return files
+
+
+    def getBlock(self, piece_index,block_offset,block_length):
+
+        for piece in self.pieces:
+            if piece_index == piece.pieceIndex:
+                if piece.finished:
+                    return piece.getBlock(block_offset,block_length)
+                else:
+                    break
+
+        return None
+

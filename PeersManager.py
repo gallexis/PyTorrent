@@ -23,9 +23,10 @@ class PeersManager(Thread):
             self.piecesByPeer.append([0, []])
 
         # Events
-        pub.subscribe(self.addPeer, 'event.newPeer')
-        pub.subscribe(self.addUnchokedPeer, 'event.peerUnchoked')
-        pub.subscribe(self.peersBitfield, 'event.updatePeersBitfield')
+        pub.subscribe(self.addPeer, 'PeersManager.newPeer')
+        pub.subscribe(self.addUnchokedPeer, 'PeersManager.peerUnchoked')
+        pub.subscribe(self.handlePeerRequests, 'PeersManager.PeerRequestsPiece')
+        pub.subscribe(self.peersBitfield, 'PeersManager.updatePeersBitfield')
 
     def peersBitfield(self, bitfield=None, peer=None, pieceIndex=None):
         if not pieceIndex == None:
@@ -71,7 +72,7 @@ class PeersManager(Thread):
             if not peer.hasHandshaked:
                 try:
                     peer.sendToPeer(peer.handshake)
-                    interested = struct.pack('!I', 1) + struct.pack('!B', 2)
+                    interested = peer.build_interested()
                     peer.sendToPeer(interested)
                 except:
                     self.removePeer(peer)
@@ -104,6 +105,12 @@ class PeersManager(Thread):
                 return peer
 
         raise ("peer not present in PeerList")
+
+    def handlePeerRequests(self,piece, peer):
+        piece_index,block_offset,block_length = piece
+        block = self.piecesManager.getBlock(piece_index,block_offset,block_length)
+        piece = peer.build_request(self, piece_index,block_offset,block)
+        peer.sendToPeer(piece)
 
     def manageMessageReceived(self, peer):
         while len(peer.readBuffer) > 0:

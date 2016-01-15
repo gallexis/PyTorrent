@@ -47,6 +47,9 @@ class Piece(object):
 
             self.isComplete()
 
+    def getBlock(self, block_offset,block_length):
+        return self.pieceData[block_offset:block_length]
+
     def getEmptyBlock(self):
         if not self.finished:
             blockIndex = 0
@@ -78,7 +81,7 @@ class Piece(object):
             self.finished = True
             self.pieceData = data
             self.writeFilesOnDisk()
-            pub.sendMessage('event.PieceCompleted',pieceIndex=self.pieceIndex)
+            pub.sendMessage('PiecesManager.PieceCompleted',pieceIndex=self.pieceIndex)
             return True
 
         else:
