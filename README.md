@@ -35,9 +35,11 @@ You can run the following command to install the dependencies using pip
 `pip install -r requirements.txt`
 
 ###Running the program
-You can only pass one torrent file
+If you want to specify a torrent file, you need to add it manually in the main.py file:  
+``` self.torrent = Torrent.Torrent("your_torrent_file.torrent") ```
 
-`python run.py <your torrent file>`
+Then simply run:
+`python run.py`
 
 ###Sources :
 
