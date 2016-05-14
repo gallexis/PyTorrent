@@ -43,7 +43,7 @@ Then simply run:
 
 ###Sources :
 
-I wouldn't go this far without the help of
+I wouldn't go that far without the help of
 [Lita] (https://github.com/lita/bittorrent "Lita"), 
 [Kristen Widman's blog] (http://www.kristenwidman.com/blog/how-to-write-a-bittorrent-client-part-1 "Kristen Widman's blog") and
 [Bittorrent Unofficial Spec] (https://wiki.theory.org/BitTorrentSpecification "Bittorrent Unofficial Spec"), so thank you.
