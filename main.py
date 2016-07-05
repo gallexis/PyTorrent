@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+
 __author__ = 'alexisgallepe'
 
 import Run

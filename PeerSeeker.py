@@ -14,7 +14,7 @@ class PeerSeeker(Thread):
         self.peerFailed = [("","")]
 
     def run(self):
-        while not self.newpeersQueue.empty():
+        while True:
             # TODO : if peerConnected == 50 sleep 50 seconds by adding new event, start,stop,slow ...
             peer = self.newpeersQueue.get()
             if not (peer[0],peer[1]) in self.peerFailed:
