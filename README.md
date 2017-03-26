@@ -21,6 +21,8 @@ But you can’t :
 -	Download more than one torrent at a time
 -	Upload data to the BitTorrent network
 -	Benefit of a good algorithm to ask your peers for blocks (like the rarest piece algo)
+-	Pause and resume download
+-	Leech or Seed to other peers
 -	And a lot of other things
 
 Don't hesitate to ask me questions if you need help, or send me a pull request for new features or improvements.
@@ -33,7 +35,7 @@ You can run the following command to install the dependencies using pip
 :boom: Because it's using the "select" function, this code will not be able to run on Windows: [python-select-on-windows](http://stackoverflow.com/questions/22251809/python-select-select-on-windows)
 
 ### Running the program
-If you want to specify a torrent file, you need to add it manually in the main.py file:  
+If you want to specify a torrent file, you need to edit it manually in the run.py file:  
 ``` python
 self.torrent = Torrent.Torrent("path_to_your_torrent") 
 ```
