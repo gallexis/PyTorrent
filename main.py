@@ -1,7 +1,7 @@
 
 __author__ = 'alexisgallepe'
 
-import Run
+import run
 import logging
 
 
@@ -9,5 +9,5 @@ if __name__ == '__main__':
 
     logging.basicConfig(level=logging.INFO)
 
-    run = Run.Run()
+    run = run.Run()
     run.start()
