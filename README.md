@@ -39,7 +39,7 @@ You can run the following command to install the dependencies using pip
 ### Running the program
 If you want to specify a torrent file, you need to add it manually in the main.py file:  
 ``` python
-self.torrent = Torrent.Torrent("your_torrent_file.torrent") 
+self.torrent = Torrent.Torrent("path_to_your_torrent") 
 ```
 Then simply run:
 `python main.py`
