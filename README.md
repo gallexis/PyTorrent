@@ -1,6 +1,6 @@
-==========
-PyTorrent - Python BitTorrent
-==========
+
+# PyTorrent - Python BitTorrent
+
 
 PyTorrent is a cli tool that downloads files from the BitTorrent network.
 
@@ -25,23 +25,25 @@ But you can’t :
 
 Don't hesitate to ask me questions if you need help, or send me a pull request for new features or improvements.
 
-###Todo
+### Todo
 - Resume a download stopped
 - Leech or Seed to other peers
 
-###Installation
+### Installation
 You can run the following command to install the dependencies using pip
 
 `pip install -r requirements.txt`
 
-###Running the program
+:boom: Because it's using the "select" function, this code will not be able to run on Windows: [python-select-on-windows](http://stackoverflow.com/questions/22251809/python-select-select-on-windows)
+
+### Running the program
 If you want to specify a torrent file, you need to add it manually in the main.py file:  
 ``` self.torrent = Torrent.Torrent("your_torrent_file.torrent") ```
 
 Then simply run:
 `python run.py`
 
-###Sources :
+### Sources :
 
 I wouldn't go that far without the help of
 [Lita] (https://github.com/lita/bittorrent "Lita"), 
