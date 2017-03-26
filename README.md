@@ -38,17 +38,20 @@ You can run the following command to install the dependencies using pip
 
 ### Running the program
 If you want to specify a torrent file, you need to add it manually in the main.py file:  
-``` self.torrent = Torrent.Torrent("your_torrent_file.torrent") ```
-
+``` python
+self.torrent = Torrent.Torrent("your_torrent_file.torrent") 
+```
 Then simply run:
 `python run.py`
+
+The files will be downloaded in the same path as your run.py script.
 
 ### Sources :
 
 I wouldn't go that far without the help of
-[Lita] (https://github.com/lita/bittorrent "Lita"), 
-[Kristen Widman's blog] (http://www.kristenwidman.com/blog/how-to-write-a-bittorrent-client-part-1 "Kristen Widman's blog") and
-[Bittorrent Unofficial Spec] (https://wiki.theory.org/BitTorrentSpecification "Bittorrent Unofficial Spec"), so thank you.
+[Lita](https://github.com/lita/bittorrent "Lita"), 
+[Kristen Widman's](http://www.kristenwidman.com/blog/how-to-write-a-bittorrent-client-part-1 "Kristen Widman's blog") & the
+[Bittorrent Unofficial Spec](https://wiki.theory.org/BitTorrentSpecification "Bittorrent Unofficial Spec"), so thank you.
 
 
 
