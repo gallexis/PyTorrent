@@ -75,11 +75,7 @@ class Peer(object):
         self.handshake = hs
 
     def build_interested(self):
-        header = struct.pack('>I', 13)
-        id = '\x06'
-        interested = header+id
-
-        return interested
+        return struct.pack('!I', 1) + struct.pack('!B', 2)
 
 
     def build_request(self, index, offset, length):

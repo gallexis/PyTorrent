@@ -22,7 +22,6 @@ class PiecesManager(Thread):
         for file in self.files:
             idPiece = file['idPiece']
             self.pieces[idPiece].files.append(file)
-            print file
 
         # Create events
         pub.subscribe(self.receiveBlockPiece, 'PiecesManager.Piece')
