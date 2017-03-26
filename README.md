@@ -25,10 +25,6 @@ But you can’t :
 
 Don't hesitate to ask me questions if you need help, or send me a pull request for new features or improvements.
 
-### Todo
-- Resume a download stopped
-- Leech or Seed to other peers
-
 ### Installation
 You can run the following command to install the dependencies using pip
 
