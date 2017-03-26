@@ -42,7 +42,7 @@ If you want to specify a torrent file, you need to add it manually in the main.p
 self.torrent = Torrent.Torrent("your_torrent_file.torrent") 
 ```
 Then simply run:
-`python run.py`
+`python main.py`
 
 The files will be downloaded in the same path as your run.py script.
 
