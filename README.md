@@ -32,7 +32,7 @@ You can run the following command to install the dependencies using pip
 
 `pip install -r requirements.txt`
 
-:boom: Because it's using the "select" function, this code will not be able to run on Windows: [python-select-on-windows](https://stackoverflow.com/a/22254123)
+:boom: Because it's using the "select" function, this code will not be able to run on Windows: [python-select-on-windows](https://stackoverflow.com/a/22254123/3170071)
 
 ### Running the program
 If you want to specify a torrent file, you need to edit it manually in the run.py file:  
