@@ -9,34 +9,36 @@ from pubsub import pub
 
 BLOCK_SIZE = 2 ** 14
 
+
 class Piece(object):
-    def __init__(self, pieceIndex, pieceSize, pieceHash):
-        self.pieceIndex = pieceIndex
-        self.pieceSize = pieceSize
-        self.pieceHash = pieceHash
-        self.finished = False
+    def __init__(self, piece_index, piece_size, piece_hash):
+        self.piece_index = piece_index
+        self.piece_size = piece_size
+        self.piece_hash = piece_hash
+        self.is_full = False
         self.files = []
-        self.pieceData = b""
-        self.num_blocks = int(math.ceil( float(pieceSize) / BLOCK_SIZE))
-        self.blocks = []
-        self.initBlocks()
-
-    def initBlocks(self):
+        self.raw_data = b""
+        self.number_of_blocks = int(math.ceil(float(piece_size) / BLOCK_SIZE))
         self.blocks = []
 
-        if self.num_blocks > 1:
-            for i in range(self.num_blocks):
-                    self.blocks.append(["Free", BLOCK_SIZE, b"",0])
+        self.init_blocks()
+
+    def init_blocks(self):
+        self.blocks = []
+
+        if self.number_of_blocks > 1:
+            for i in range(self.number_of_blocks):
+                self.blocks.append(["Free", BLOCK_SIZE, b"", 0])
 
             # Last block of last piece, the special block
-            if (self.pieceSize % BLOCK_SIZE) > 0:
-                self.blocks[self.num_blocks-1][1] = self.pieceSize % BLOCK_SIZE
+            if (self.piece_size % BLOCK_SIZE) > 0:
+                self.blocks[self.number_of_blocks - 1][1] = self.piece_size % BLOCK_SIZE
 
         else:
-            self.blocks.append(["Free", int(self.pieceSize), b"",0])
+            self.blocks.append(["Free", int(self.piece_size), b"", 0])
 
-    def setBlock(self, offset, data):
-        if not self.finished:
+    def set_block(self, offset, data):
+        if not self.all_blocks_full():
             if offset == 0:
                 index = 0
             else:
@@ -45,78 +47,66 @@ class Piece(object):
             self.blocks[index][2] = data
             self.blocks[index][0] = "Full"
 
-            self.isComplete()
+    def get_block(self, block_offset, block_length):
+        return self.raw_data[block_offset:block_length]
 
-    def getBlock(self, block_offset,block_length):
-        return self.pieceData[block_offset:block_length]
-
-    def getEmptyBlock(self):
-        if not self.finished:
-            blockIndex = 0
+    def get_empty_block(self):
+        if not self.is_full:
+            block_index = 0
             for block in self.blocks:
                 if block[0] == "Free":
                     block[0] = "Pending"
                     block[3] = int(time.time())
-                    return self.pieceIndex, blockIndex * BLOCK_SIZE, block[1]
-                blockIndex+=1
+                    return self.piece_index, block_index * BLOCK_SIZE, block[1]
+                block_index += 1
 
         return False
 
-    def freeBlockLeft(self):
-        for block in self.blocks:
-            if block[0] == "Free":
-                return True
-        return False
-
-    def isComplete(self):
-
-        # If there is at least one block Free|Pending -> Piece not complete -> return false
+    def all_blocks_full(self):
         for block in self.blocks:
             if block[0] == "Free" or block[0] == "Pending":
                 return False
+        return True
 
-        # Before returning True, we must check if hashes match
-        data = self.assembleData()
-        if self.isHashPieceCorrect(data):
-            self.finished = True
-            self.pieceData = data
-            self.writeFilesOnDisk()
-            pub.sendMessage('PiecesManager.PieceCompleted',pieceIndex=self.pieceIndex)
-            return True
+    def set_to_full(self):
+        data = self.merge_blocks()
+        if self.hash_is_correct(data):
+            self.is_full = True
+            self.raw_data = data
+            self.write_piece_on_disk()
+            pub.sendMessage('PiecesManager.PieceCompleted', pieceIndex=self.piece_index)
 
-        else:
-            return False
-
-    def writeFunction(self,pathFile,data,offset):
-        try:
-            f = open(pathFile,'r+b')
-        except IOError:
-            f = open(pathFile,'wb')
-        f.seek(offset)
-        f.write(data)
-        f.close()
-
-    def writeFilesOnDisk(self):
+    def write_piece_on_disk(self):
         for file in self.files:
-            pathFile = file["path"]
-            fileOffset = file["fileOffset"]
-            pieceOffset = file["pieceOffset"]
+            path_file = file["path"]
+            file_offset = file["fileOffset"]
+            piece_offset = file["pieceOffset"]
             length = file["length"]
 
-            self.writeFunction(pathFile,self.pieceData[pieceOffset:pieceOffset+length],fileOffset)
+            try:
+                f = open(path_file, 'r+b')  # Already existing file
+            except IOError:
+                f = open(path_file, 'wb')  # New file
+            except Exception as e:
+                logging.error("Can't write to file : %s", e.message)
+                return
 
+            f.seek(file_offset)
+            f.write(self.raw_data[piece_offset:piece_offset + length])
+            f.close()
 
-    def assembleData(self):
+    def merge_blocks(self):
         buf = b""
         for block in self.blocks:
-            buf+=block[2]
+            buf += block[2]
         return buf
 
-    def isHashPieceCorrect(self,data):
-        if utils.sha1_hash(data) == self.pieceHash:
+    def hash_is_correct(self, piece_raw_data):
+        hashed_piece_raw_data = utils.sha1_hash(piece_raw_data)
+        if hashed_piece_raw_data == self.piece_hash:
             return True
         else:
             logging.warning("Error Piece Hash")
-            logging.debug("{} : {}".format(utils.sha1_hash(data),self.pieceHash))
-            self.initBlocks()
+            logging.debug("{} : {}".format(hashed_piece_raw_data, self.piece_hash))
+            self.init_blocks()
             return False

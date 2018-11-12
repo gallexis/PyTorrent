@@ -8,61 +8,71 @@ from libs.utils import sha1_hash
 
 
 class Torrent(object):
-    def __init__(self, path):
+    def __init__(self):
+        self.torrent_file = {}
+        self.total_length = 0
+        self.piece_length = 0
+        self.pieces = 0
+        self.info_hash = ""
+        self.peer_id = ""
+        self.announce_list = ""
+        self.file_names = []
+        self.number_of_pieces = 0
 
+    def load_from_path(self, path):
         with open(path, 'r') as file:
             contents = file.read()
 
-        self.torrentFile = bencode.bdecode(contents)
-        self.totalLength = 0
-        self.pieceLength = self.torrentFile['info']['piece length']
-        self.pieces = self.torrentFile['info']['pieces']
+        self.torrent_file = bencode.bdecode(contents)
+        self.piece_length = self.torrent_file['info']['piece length']
+        self.pieces = self.torrent_file['info']['pieces']
         self.info_hash = sha1_hash(str(
-            bencode.bencode(self.torrentFile['info'])
+            bencode.bencode(self.torrent_file['info'])
         ))
-        self.peer_id = self.generatePeerId()
-        self.announceList = self.getTrakers()
-        self.fileNames = []
+        self.peer_id = self.generate_peer_id()
+        self.announce_list = self.get_trakers()
 
-        self.getFiles()
+        self.init_files()
 
-        if self.totalLength % self.pieceLength == 0:
-            self.numberOfPieces = self.totalLength / self.pieceLength
+        if self.total_length % self.piece_length == 0:
+            self.number_of_pieces = self.total_length / self.piece_length
         else:
-            self.numberOfPieces = (self.totalLength / self.pieceLength) + 1
+            self.number_of_pieces = (self.total_length / self.piece_length) + 1
 
-        logging.debug(self.announceList)
-        logging.debug(self.fileNames)
+        logging.debug(self.announce_list)
+        logging.debug(self.file_names)
 
-        assert(self.totalLength > 0)
-        assert(len(self.fileNames) > 0)
+        assert(self.total_length > 0)
+        assert(len(self.file_names) > 0)
 
-    def getFiles(self):
-        root = self.torrentFile['info']['name']
+        return self
 
-        if 'files' in self.torrentFile['info']:
+    def init_files(self):
+        root = self.torrent_file['info']['name']
+
+        if 'files' in self.torrent_file['info']:
             if not os.path.exists(root):
                 os.mkdir(root, 0766 )
 
-            for file in self.torrentFile['info']['files']:
-                pathFile = os.path.join(root, *file["path"])
+            for file in self.torrent_file['info']['files']:
+                path_file = os.path.join(root, *file["path"])
 
-                if not os.path.exists(os.path.dirname(pathFile)):
-                    os.makedirs(os.path.dirname(pathFile))
+                if not os.path.exists(os.path.dirname(path_file)):
+                    os.makedirs(os.path.dirname(path_file))
 
-                self.fileNames.append({"path": pathFile , "length": file["length"]})
-                self.totalLength += file["length"]
+                self.file_names.append({"path": path_file , "length": file["length"]})
+                self.total_length += file["length"]
 
         else:
-            self.fileNames.append({"path": root , "length": self.torrentFile['info']['length']})
-            self.totalLength = self.torrentFile['info']['length']
+            self.file_names.append({"path": root , "length": self.torrent_file['info']['length']})
+            self.total_length = self.torrent_file['info']['length']
 
-    def getTrakers(self):
-        if 'announce-list' in self.torrentFile:
-            return self.torrentFile['announce-list']
+    def get_trakers(self):
+        if 'announce-list' in self.torrent_file:
+            return self.torrent_file['announce-list']
         else:
-            return [[ self.torrentFile['announce'] ]]
+            return [[self.torrent_file['announce']]]
 
-    def generatePeerId(self):
+    def generate_peer_id(self):
         seed = str(time.time())
         return sha1_hash(seed)

@@ -2,7 +2,7 @@ __author__ = 'alexisgallepe'
 
 import hashlib
 
-def convertBytesToDecimal(headerBytes):
+def bytes_to_decimal(headerBytes):
     size = 0
     power = len(headerBytes) - 1
 

@@ -1,38 +1,37 @@
+import logging
+
 __author__ = 'alexisgallepe'
 
-from pubsub import pub
 
 class RarestPieces(object):
-    def __init__(self, piecesManager):
+    def __init__(self, pieces_manager):
 
-        self.piecesManager = piecesManager
-        self.rarestPieces = []
+        self.pieces_manager = pieces_manager
+        self.rarest_pieces = []
 
-        for pieceNumber in range(self.piecesManager.numberOfPieces):
-            peersByPieceIndex = {"idPiece":pieceNumber, "numberOfPeers":0, "peers":[]}
-            self.rarestPieces.append(peersByPieceIndex)
+        for piece_number in range(self.pieces_manager.number_of_pieces):
+            self.rarest_pieces.append({"idPiece": piece_number, "numberOfPeers": 0, "peers": []})
 
-        #pub.subscribe(self.peersBitfield, 'RarestPiece.updatePeersBitfield')
+        # pub.subscribe(self.peersBitfield, 'RarestPiece.updatePeersBitfield')
 
+    def peers_bitfield(self, bitfield=None, peer=None, piece_index=None):
 
-    def peersBitfield(self,bitfield=None,peer=None,pieceIndex=None):
-
-        if len(self.rarestPieces) == 0:
-            raise("no more piece")
+        if len(self.rarest_pieces) == 0:
+            raise Exception("No more piece")
 
         # Piece complete
         try:
-            if not pieceIndex == None:
-                self.rarestPieces.__delitem__(pieceIndex)
-        except:
-            pass
+            if not piece_index == None:
+                self.rarest_pieces.__delitem__(piece_index)
+        except Exception as e:
+                logging.error("Failed to remove rarest piece : %s", e.message)
 
         # Peer's bitfield updated
         else:
-            for i in range(len(self.rarestPieces)):
-                if bitfield[i] == 1 and peer not in self.rarestPieces[i]["peers"]:
-                    self.rarestPieces[i]["peers"].append(peer)
-                    self.rarestPieces[i]["numberOfPeers"] = len(self.rarestPieces[i]["peers"])
+            for i in range(len(self.rarest_pieces)):
+                if bitfield[i] == 1 and peer not in self.rarest_pieces[i]["peers"]:
+                    self.rarest_pieces[i]["peers"].append(peer)
+                    self.rarest_pieces[i]["numberOfPeers"] = len(self.rarest_pieces[i]["peers"])
 
-    def getSortedPieces(self):
-        return sorted(self.rarestPieces, key=lambda x:x['numberOfPeers'])
+    def get_sorted_pieces(self):
+        return sorted(self.rarest_pieces, key=lambda x: x['numberOfPeers'])

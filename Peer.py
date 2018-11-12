@@ -9,19 +9,20 @@ from libs import utils
 import threading
 import logging
 
+
 class Peer(object):
-    def __init__(self, torrent,ip, port=6881):
+    def __init__(self, torrent, ip, port=6881):
 
         self.lock = threading.Lock()
         self.handshake = None
-        self.hasHandshaked = False
-        self.readBuffer = b""
+        self.has_handshaked = False
+        self.read_buffer = b""
         self.counter = 10
         self.socket = None
         self.ip = ip
         self.port = port
         self.torrent = torrent
-        self.socketsPeers = []
+        self.sockets_peers = []
 
         self.state = {
             'am_choking': True,
@@ -29,7 +30,7 @@ class Peer(object):
             'peer_choking': True,
             'peer_interested': False,
         }
-        self.idFunction = {
+        self.map_code_to_method = {
             0: self.choke,
             1: self.unchoke,
             2: self.interested,
@@ -42,24 +43,24 @@ class Peer(object):
             9: self.portRequest
         }
 
-        self.numberOfPieces = torrent.numberOfPieces
+        self.number_of_pieces = torrent.number_of_pieces
 
-        self.bitField = bitstring.BitArray(self.numberOfPieces)
+        self.bit_field = bitstring.BitArray(self.number_of_pieces)
 
-    def connectToPeer(self, timeout=10):
+    def connect_to_peer(self, timeout=10):
         try:
             self.socket = socket.create_connection((self.ip, self.port), timeout)
             logging.info("connected to peer ip: {} - port: {}".format(self.ip, self.port))
             self.build_handshake()
 
             return True
-        except:
-            pass
+        except Exception as e:
+            logging.error("Failed to connect to peer : %s", e.message)
 
         return False
 
-    def hasPiece(self,index):
-        return self.bitField[index]
+    def has_piece(self, index):
+        return self.bit_field[index]
 
     def build_handshake(self):
         pstr = "BitTorrent protocol"
@@ -76,7 +77,6 @@ class Peer(object):
 
     def build_interested(self):
         return struct.pack('!I', 1) + struct.pack('!B', 2)
-
 
     def build_request(self, index, offset, length):
         header = struct.pack('>I', 13)
@@ -101,17 +101,17 @@ class Peer(object):
     def build_bitfield(self):
         length = struct.pack('>I', 4)
         id = '\x05'
-        bitfield= self.bitField.tobytes()
+        bitfield = self.bit_field.tobytes()
         bitfield = length + id + bitfield
         return bitfield
 
-    def sendToPeer(self, msg):
+    def send_to_peer(self, msg):
         try:
             self.socket.send(msg)
         except:
-            pass
+            logging.error("Failed to send to peer")
 
-    def checkHandshake(self, buf, pstr="BitTorrent protocol"):
+    def check_handshake(self, buf, pstr="BitTorrent protocol"):
         if buf[1:20] == pstr:
             handshake = buf[:68]
             expected_length, info_dict, info_hash, peer_id = struct.unpack(
@@ -119,12 +119,12 @@ class Peer(object):
                 handshake)
 
             if self.torrent.info_hash == info_hash:
-                self.hasHandshaked = True
-                #self.sendToPeer(self.build_bitfield())
+                self.has_handshaked = True
+                self.send_to_peer(self.build_bitfield())
             else:
                 logging.warning("Error with peer's handshake")
 
-            self.readBuffer = self.readBuffer[28 +len(info_hash)+20:]
+            self.read_buffer = self.read_buffer[28 + len(info_hash) + 20:]
 
     def keep_alive(self, payload):
         try:
@@ -133,53 +133,51 @@ class Peer(object):
                 logging.info('KEEP ALIVE')
                 return True
         except:
-            pass
+            logging.error("Error Keep Alive")
+            return False
 
-        return False
-
-    def choke(self,payload=None):
+    def choke(self, payload=None):
         logging.info('choke')
         self.state['peer_choking'] = True
 
-    def unchoke(self,payload=None):
+    def unchoke(self, payload=None):
         logging.info('unchoke')
-        pub.sendMessage('PeersManager.peerUnchoked',peer=self)
+        pub.sendMessage('PeersManager.peerUnchoked', peer=self)
         self.state['peer_choking'] = False
 
-    def interested(self,payload=None):
+    def interested(self, payload=None):
         logging.info('interested')
         self.state['peer_interested'] = True
 
-    def not_interested(self,payload=None):
+    def not_interested(self, payload=None):
         logging.info('not_interested')
         self.state['peer_interested'] = False
 
     def have(self, payload):
-        index = utils.convertBytesToDecimal(payload)
-        self.bitField[index] = True
-        pub.sendMessage('RarestPiece.updatePeersBitfield',bitfield=self.bitField,peer=self)
+        index = utils.bytes_to_decimal(payload)
+        self.bit_field[index] = True
+        pub.sendMessage('RarestPiece.updatePeersBitfield', bitfield=self.bit_field, peer=self)
 
     def bitfield(self, payload):
-        self.bitField = BitArray(bytes=payload)
+        self.bit_field = BitArray(bytes=payload)
         logging.info('request')
-        pub.sendMessage('RarestPiece.updatePeersBitfield',bitfield=self.bitField,peer=self)
+        pub.sendMessage('RarestPiece.updatePeersBitfield', bitfield=self.bit_field, peer=self)
 
     def request(self, payload):
         piece_index = payload[:4]
         block_offset = payload[4:8]
         block_length = payload[8:]
         logging.info('request')
-        pub.sendMessage('PiecesManager.PeerRequestsPiece',piece=(piece_index,block_offset,block_length), peer=self)
+        pub.sendMessage('PiecesManager.PeerRequestsPiece', piece=(piece_index, block_offset, block_length), peer=self)
 
     def piece(self, payload):
-        piece_index = utils.convertBytesToDecimal(payload[:4])
-        piece_offset = utils.convertBytesToDecimal(payload[4:8])
+        piece_index = utils.bytes_to_decimal(payload[:4])
+        piece_offset = utils.bytes_to_decimal(payload[4:8])
         piece_data = payload[8:]
-        pub.sendMessage('PiecesManager.Piece',piece=(piece_index,piece_offset,piece_data))
+        pub.sendMessage('PiecesManager.Piece', piece=(piece_index, piece_offset, piece_data))
 
     def cancel(self, payload=None):
         logging.info('cancel')
 
     def portRequest(self, payload=None):
         logging.info('portRequest')
-
