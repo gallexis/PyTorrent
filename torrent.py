@@ -1,10 +1,11 @@
+import hashlib
+
 __author__ = 'alexisgallepe'
 
 import time
 import bencode
 import logging
 import os
-from libs.utils import sha1_hash
 
 
 class Torrent(object):
@@ -26,9 +27,8 @@ class Torrent(object):
         self.torrent_file = bencode.bdecode(contents)
         self.piece_length = self.torrent_file['info']['piece length']
         self.pieces = self.torrent_file['info']['pieces']
-        self.info_hash = sha1_hash(str(
-            bencode.bencode(self.torrent_file['info'])
-        ))
+        raw_info_hash = str(bencode.bencode(self.torrent_file['info']))
+        self.info_hash = hashlib.sha1(raw_info_hash).digest()
         self.peer_id = self.generate_peer_id()
         self.announce_list = self.get_trakers()
 
@@ -75,4 +75,4 @@ class Torrent(object):
 
     def generate_peer_id(self):
         seed = str(time.time())
-        return sha1_hash(seed)
+        return hashlib.sha1(seed).digest()

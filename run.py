@@ -1,75 +1,88 @@
 __author__ = 'alexisgallepe'
 
 import time
-import PeersManager
-import PeerSeeker
-import PiecesManager
-import Torrent
-import Tracker
+import peers_manager
+import peers_seeker
+import pieces_manager
+import torrent
+import tracker
 import logging
 import Queue
 
 
 class Run(object):
+    percentage_completed = -1
+
     def __init__(self):
         new_peers = Queue.Queue()
 
-        self.torrent = Torrent.Torrent().load_from_path("oldest_torrent_file.torrent")
-        self.tracker = Tracker.Tracker(self.torrent, new_peers)
+        self.torrent = torrent.Torrent().load_from_path("torrent.torrent")
+        self.tracker = tracker.Tracker(self.torrent, new_peers)
 
-        self.peer_seeker = PeerSeeker.PeerSeeker(new_peers, self.torrent)
-        self.pieces_manager = PiecesManager.PiecesManager(self.torrent)
-        self.peers_manager = PeersManager.PeersManager(self.torrent, self.pieces_manager)
+        self.peer_seeker = peers_seeker.PeersSeeker(new_peers, self.torrent)
+        self.pieces_manager = pieces_manager.PiecesManager(self.torrent)
+        self.peers_manager = peers_manager.PeersManager(self.torrent, self.pieces_manager)
 
         self.peers_manager.start()
-        logging.info("Peers-manager Started")
+        logging.info("PeersManager Started")
 
         self.peer_seeker.start()
-        logging.info("Peer-seeker Started")
+        logging.info("PeerSeeker Started")
 
         self.pieces_manager.start()
-        logging.info("Pieces-manager Started")
+        logging.info("PiecesManager Started")
 
     def start(self):
-        old = 0
+        while not self.pieces_manager.all_pieces_completed():
+            if not self.peers_manager.has_unchoked_peers():
+                time.sleep(0.1)
+                continue
 
-        while not self.pieces_manager.pieces_full():
-            if len(self.peers_manager.unchoked_peers) > 0:
+            for piece in self.pieces_manager.pieces:
+                print piece.is_full
+                if piece.is_full: continue
 
-                for piece in self.pieces_manager.pieces:
-                    if not piece.is_full:
-                        peer = self.peers_manager.get_unchoked_peer(piece.piece_index)
-                        if not peer:
-                            continue
+                peer = self.peers_manager.get_peer_having_piece(piece.piece_index)
+                if not peer: continue
 
-                        data = self.pieces_manager.pieces[piece.piece_index].get_empty_block()
+                # peer.send_bitfield()
 
-                        if data:
-                            index, offset, length = data
-                            self.peers_manager.request_new_piece(peer, index, offset, length)
+                data = self.pieces_manager.pieces[piece.piece_index].get_empty_block()
+                if data:
+                    self.peers_manager.peer_requests_piece(peer, data)
 
-                        if piece.all_blocks_full():
-                            piece.set_to_full()
+                """
+                data = self.pieces_manager.pieces[piece.piece_index].get_empty_block()
+                if data:
+                    index, offset, length = data
+                    block = self.pieces_manager.get_block(index, offset, length)
+                    if block:
+                        peer.send_piece(index, offset, length, block)
+                """
 
-                        ##########################
-                        for block in piece.blocks:
-                            if (int(time.time()) - block[3]) > 8 and block[0] == "Pending":
-                                block[0] = "Free"
-                                block[3] = 0
+                if piece.all_blocks_full():
+                    piece.set_to_full()
 
-                b = 0
-                for i in range(self.pieces_manager.number_of_pieces):
-                    for j in range(self.pieces_manager.pieces[i].number_of_blocks):
-                        if self.pieces_manager.pieces[i].blocks[j][0] == "Full":
-                            b += len(self.pieces_manager.pieces[i].blocks[j][2])
+                piece.update_block_status()
 
-                if b == old:
-                    continue
-
-                old = b
-                print "Number of peers: ", len(self.peers_manager.unchoked_peers), " Completed: ", float(
-                    (float(b) / self.torrent.total_length) * 100), "%"
-
-            ##########################
+            self.display_progression()
 
             time.sleep(0.1)
+
+    def display_progression(self):
+        new_progression = 0
+
+        for i in range(self.pieces_manager.number_of_pieces):
+            for j in range(self.pieces_manager.pieces[i].number_of_blocks):
+                if self.pieces_manager.pieces[i].blocks[j][0] == "Full":
+                    new_progression += len(self.pieces_manager.pieces[i].blocks[j][2])
+
+        if new_progression == self.percentage_completed:
+            return
+
+        number_of_peers = len(self.peers_manager.unchoked_peers_count())
+        percentage_completed = float((float(new_progression) / self.torrent.total_length) * 100)
+
+        print "Number of peers: {} - Completed : {}%".format(number_of_peers, percentage_completed)
+
+        self.percentage_completed = new_progression

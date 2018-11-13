@@ -1,10 +1,11 @@
+import hashlib
+
 __author__ = 'alexisgallepe'
 
 import math
 import time
 import logging
 
-from libs import utils
 from pubsub import pub
 
 BLOCK_SIZE = 2 ** 14
@@ -36,6 +37,12 @@ class Piece(object):
 
         else:
             self.blocks.append(["Free", int(self.piece_size), b"", 0])
+
+    def update_block_status(self):  # if block is pending for too long : set it free
+        for block in self.blocks:
+            if (int(time.time()) - block[3]) > 8 and block[0] == "Pending":
+                block[0] = "Free"
+                block[3] = 0
 
     def set_block(self, offset, data):
         if not self.all_blocks_full():
@@ -88,7 +95,7 @@ class Piece(object):
             except IOError:
                 f = open(path_file, 'wb')  # New file
             except Exception as e:
-                logging.error("Can't write to file : %s", e.message)
+                logging.error("Can't write to file : %s" % e.message)
                 return
 
             f.seek(file_offset)
@@ -102,7 +109,7 @@ class Piece(object):
         return buf
 
     def hash_is_correct(self, piece_raw_data):
-        hashed_piece_raw_data = utils.sha1_hash(piece_raw_data)
+        hashed_piece_raw_data = hashlib.sha1(piece_raw_data).digest()
         if hashed_piece_raw_data == self.piece_hash:
             return True
         else:

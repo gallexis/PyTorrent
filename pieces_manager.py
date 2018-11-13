@@ -1,6 +1,6 @@
 __author__ = 'alexisgallepe'
 
-import Piece
+import piece
 import bitstring
 import logging
 from threading import Thread
@@ -21,7 +21,7 @@ class PiecesManager(Thread):
             id_piece = file['idPiece']
             self.pieces[id_piece].files.append(file)
 
-        # Create events
+        # events
         pub.subscribe(self.receive_block_piece, 'PiecesManager.Piece')
         pub.subscribe(self.update_bitfield, 'PiecesManager.PieceCompleted')
 
@@ -41,12 +41,12 @@ class PiecesManager(Thread):
 
             if i == (self.number_of_pieces - 1):
                 piece_length = self.torrent.total_length - (self.number_of_pieces - 1) * self.torrent.piece_length
-                pieces.append(Piece.Piece(i, piece_length, self.torrent.pieces[start:end]))
+                pieces.append(piece.Piece(i, piece_length, self.torrent.pieces[start:end]))
             else:
-                pieces.append(Piece.Piece(i, self.torrent.piece_length, self.torrent.pieces[start:end]))
+                pieces.append(piece.Piece(i, self.torrent.piece_length, self.torrent.pieces[start:end]))
         return pieces
 
-    def pieces_full(self):
+    def all_pieces_completed(self):
         for piece in self.pieces:
             if not piece.is_full:
                 return False

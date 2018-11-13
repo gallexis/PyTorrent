@@ -56,7 +56,7 @@ class Tracker(object):
             self.parse_tracker_response(list_peers['peers'])
 
         except Exception as e:
-            logging.error("HTTP scraping failed : %s", e.message)
+            logging.debug("HTTP scraping failed : %s" % e.message)
 
     def udp_scrapper(self, torrent, announce):
         try:
@@ -86,7 +86,7 @@ class Tracker(object):
             self.parse_tracker_response(response[20:])
 
         except Exception as e:
-            logging.error("UDP scraping failed : %s", e.message)
+            logging.error("UDP scraping failed : %s" % e.message)
 
     def parse_tracker_response(self, peers_byte):
         raw_bytes = [ord(c) for c in peers_byte]
@@ -129,8 +129,11 @@ class Tracker(object):
 
         try:
             response = sock.recv(2048)
-        except socket.timeout as err:
-            logging.error(err)
+        except socket.timeout as e:
+            logging.debug("Timeout : %s" % e.message)
+            return
+        except Exception as e:
+            logging.error("Unexpected error when sending message : %s" % e.message)
             return
 
         if len(response) < size:
