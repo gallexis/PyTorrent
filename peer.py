@@ -3,22 +3,20 @@ __author__ = 'alexisgallepe'
 import socket
 import struct
 import bitstring
-from bitstring import BitArray
 from pubsub import pub
 import logging
+
+import message
 
 
 class Peer(object):
     def __init__(self, torrent, ip, port=6881):
-        self.handshake = None
         self.has_handshaked = False
+        self.to_remove = False
         self.read_buffer = b''
-        self.counter = 10
         self.socket = None
         self.ip = ip
         self.port = port
-        self.torrent = torrent
-        self.sockets_peers = []
         self.number_of_pieces = torrent.number_of_pieces
         self.bit_field = bitstring.BitArray(torrent.number_of_pieces)
         self.state = {
@@ -40,145 +38,158 @@ class Peer(object):
             9: self.handle_port_request
         }
 
-    def is_choking(self):
-        return self.state['peer_choking']
-
-    def connect_to_peer(self, timeout=10):
+    def connect(self):
         try:
-            self.socket = socket.create_connection((self.ip, self.port), timeout)
+            self.socket = socket.create_connection((self.ip, self.port), timeout=5)
+            self.socket.setblocking(False)
             logging.info("Connected to peer ip: {} - port: {}".format(self.ip, self.port))
             return True
 
         except Exception as e:
-            pass
-            #ogging.error("Failed to connect to peer : %s" % e.message)
+            logging.error("Failed to connect to peer : %s" % e.message)
 
         return False
 
     def send_to_peer(self, msg):
         try:
-            self.socket.send(msg)
+            if not self.to_remove:
+                self.socket.send(msg)
         except Exception as e:
+            self.to_remove = True
             logging.error("Failed to send to peer : %s" % e.message)
 
     def has_piece(self, index):
         return self.bit_field[index]
 
-    def build_handshake(self):
-        """<pstrlen><pstr><reserved><info_hash><peer_id>"""
-        pstr = b'BitTorrent protocol'
-        pstr_len = len(pstr)
-        fmt = '!B%ds8x20s20s' % pstr_len
-        handshake = struct.pack(fmt, pstr_len, pstr, self.torrent.info_hash, self.torrent.peer_id)
+    def am_choking(self):
+        return self.state['am_choking']
 
-        return handshake
+    def am_unchoking(self):
+        return not self.am_choking()
 
-    def build_interested(self):
-        return struct.pack('!I', 1) + struct.pack('!B', 2)
+    def is_choking(self):
+        return self.state['peer_choking']
 
-    def build_request(self, index, offset, length):
-        header = struct.pack('>I', 13)
-        id = '\x06'
-        index = struct.pack('>I', index)
-        offset = struct.pack('>I', offset)
-        length = struct.pack('>I', length)
-        request = header + id + index + offset + length
+    def is_unchoked(self):
+        return not self.is_choking()
 
-        return request
+    def is_interested(self):
+        return self.state['peer_interested']
 
-    def build_piece(self, index, offset, data):
-        header = struct.pack('>I', 13)
-        id = '\x07'
-        index = struct.pack('>I', index)
-        offset = struct.pack('>I', offset)
-        data = struct.pack('>I', data)
-        piece = header + id + index + offset + data
+    def am_interested(self):
+        return self.state['am_interested']
 
-        return piece
-
-    def build_bitfield(self):
-        length = struct.pack('>I', 4)
-        id = '\x05'
-        bitfield = self.bit_field.tobytes()
-        bitfield = length + id + bitfield
-        return bitfield
-
-    def check_handshake(self, buffer):
-        pstr = "BitTorrent protocol"
-
-        if buffer[1:20] == pstr:
-            handshake = buffer[:68]
-            expected_length, info_dict, info_hash, peer_id = struct.unpack(
-                "B" + str(len(pstr)) + "s8x20s20s",
-                handshake)
-
-            if self.torrent.info_hash == info_hash:
-                self.has_handshaked = True
-                logging.info('has_handshaked')
-            else:
-                logging.warning("Error with peer's handshake")
-
-            self.read_buffer = self.read_buffer[28 + len(info_hash) + 20:]
-
-    def is_keep_alive(self, payload):
-        try:
-            keep_alive = struct.unpack("!I", payload[:4])[0]
-            if keep_alive == 0:
-                logging.info('Handle KeepAlive')
-                return True
-
-        except Exception as e:
-            logging.error("Error KeepAlive : %s" % e.message)
-            return False
-
-    def handle_choke(self, payload=None):
-        logging.info('peer_choking')
+    def handle_choke(self):
+        logging.debug('handle_choke - %s' % self.ip)
         self.state['peer_choking'] = True
 
-    def handle_unchoke(self, payload=None):
-        logging.info('unchoke')
+    def handle_unchoke(self):
+        logging.debug('handle_unchoke - %s' % self.ip)
         self.state['peer_choking'] = False
 
-    def handle_interested(self, payload=None):
-        logging.info('interested')
+    def handle_interested(self):
+        logging.debug('handle_interested - %s' % self.ip)
         self.state['peer_interested'] = True
 
-    def handle_not_interested(self, payload=None):
-        logging.info('not_interested')
+        if self.am_choking():
+            unchoke = message.UnChoke().to_bytes()
+            self.send_to_peer(unchoke)
+
+    def handle_not_interested(self):
+        logging.debug('handle_not_interested - %s' % self.ip)
         self.state['peer_interested'] = False
 
-    def handle_have(self, payload):
-        index = struct.unpack('!I', payload)[0]
-        self.bit_field[index] = True
-        pub.sendMessage('RarestPiece.updatePeersBitfield', bitfield=self.bit_field, peer=self)
+    def handle_have(self, have):
+        """
+        :type have: message.Have
+        """
+        logging.debug('handle_have - %s' % self.ip)
+        self.bit_field[have.piece_index] = True
 
-    def handle_bitfield(self, payload):
-        self.bit_field = BitArray(bytes=payload)
-        logging.info('request')
-        pub.sendMessage('RarestPiece.updatePeersBitfield', bitfield=self.bit_field, peer=self)
+        if self.is_choking():
+            interested = message.Interested().to_bytes()
+            self.send_to_peer(interested)
+            self.state['am_interested'] = True
 
-    def handle_request(self, payload):
-        piece_index = payload[:4]
-        block_offset = payload[4:8]
-        block_length = payload[8:]
-        logging.info('request from client')
+        # pub.sendMessage('RarestPiece.updatePeersBitfield', bitfield=self.bit_field)
 
-        #TODO : pub.sendMessage('PiecesManager.PeerRequestsPiece', piece=(piece_index, block_offset, block_length), peer=self)
+    def handle_bitfield(self, bitfield):
+        """
+        :type bitfield: message.BitField
+        """
+        logging.debug('handle_bitfield - %s' % self.ip)
+        self.bit_field = bitfield.bitfield
 
-    def handle_piece(self, payload):
-        piece_index = struct.unpack('!I', payload[:4])[0]
-        piece_offset = struct.unpack('!I', payload[4:8])[0]
-        piece_data = payload[8:]
-        pub.sendMessage('PiecesManager.Piece', piece=(piece_index, piece_offset, piece_data))
-        logging.info('Receive new Piece : %s', str((piece_index, piece_offset, piece_data)))
+        if self.is_choking():
+            interested = message.Interested().to_bytes()
+            self.send_to_peer(interested)
+            self.state['am_interested'] = True
 
-    def handle_cancel(self, payload=None):
-        logging.info('cancel')
+        # pub.sendMessage('RarestPiece.updatePeersBitfield', bitfield=self.bit_field)
 
-    def handle_port_request(self, payload=None):
-        logging.info('portRequest')
+    def handle_request(self, request):
+        """
+        :type request: message.Request
+        """
+        logging.debug('handle_request - %s' % self.ip)
+        if self.is_interested() and self.is_unchoked():
+            pub.sendMessage('PiecesManager.PeerRequestsPiece', request=request, peer=self)
 
-    def send_piece(self, piece_index, block_offset, data):
-        piece = self.build_piece(piece_index, block_offset, data)
-        self.send_to_peer(piece)
-        logging.info("Sent : send_new_piece (%s)" % str((piece_index, block_offset, len(data))))
+    def handle_piece(self, message):
+        """
+        :type message: message.Piece
+        """
+        logging.debug('handle_piece - %s' % self.ip)
+        pub.sendMessage('PiecesManager.Piece', piece=(message.piece_index, message.block_offset, message.block))
+
+    def handle_cancel(self):
+        logging.debug('handle_cancel - %s' % self.ip)
+
+    def handle_port_request(self):
+        logging.debug('handle_port_request - %s' % self.ip)
+
+    def _handle_handshake(self):
+        try:
+            handshake_message = message.Handshake.from_bytes(self.read_buffer)
+            self.has_handshaked = True
+            self.read_buffer = self.read_buffer[handshake_message.total_length:]
+            logging.debug('handle_handshake - %s' % self.ip)
+            return True
+
+        except Exception as e:
+            logging.error("First message should always be an handshake message : %s" % e.message)
+            self.to_remove = True
+
+        return False
+
+    def _handle_keep_alive(self):
+        try:
+            keep_alive = message.KeepAlive.from_bytes(self.read_buffer)
+            logging.debug('handle_keep_alive - %s' % self.ip)
+        except message.WrongMessageException:
+            return False
+        except Exception as e:
+            logging.error("Error KeepALive, (need at least 4 bytes : {}) - {}".format(len(self.read_buffer), e.message))
+            return False
+
+        self.read_buffer = self.read_buffer[keep_alive.total_length:]
+        return True
+
+    def get_messages(self):
+        while len(self.read_buffer) > 4 and not self.to_remove:
+            if (not self.has_handshaked and self._handle_handshake()) or self._handle_keep_alive():
+                continue
+
+            payload_length, = struct.unpack(">I", self.read_buffer[:4])
+            total_length = payload_length + 4
+
+            if len(self.read_buffer) < total_length:
+                break
+            else:
+                payload = self.read_buffer[:total_length]
+                self.read_buffer = self.read_buffer[total_length:]
+
+            try:
+                yield message.MessageDispatcher(payload).dispatch()
+            except message.WrongMessageException as e:
+                logging.error(e.message)

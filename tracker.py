@@ -1,3 +1,5 @@
+import peer
+
 __author__ = 'alexisgallepe'
 
 import bencode
@@ -17,17 +19,18 @@ class FuncThread(threading.Thread):
     def run(self):
         self._target(*self._args)
 
-
 class Tracker(object):
-    def __init__(self, torrent, new_peers_queue):
+    def __init__(self, torrent):
         self.torrent = torrent
         self.threads_list = []
-        self.new_peers_queue = new_peers_queue
-        self.get_peers_from_trackers()
+        self.list_ip_port = []
+        self.banned_ips = []
+        self.connected_peers = []
 
     def get_peers_from_trackers(self):
         for tracker in self.torrent.announce_list:
             if tracker[0][:4] == "http":
+                continue
                 t1 = FuncThread(self.http_scraper, self.torrent, tracker[0])
                 self.threads_list.append(t1)
                 t1.start()
@@ -40,6 +43,22 @@ class Tracker(object):
         for t in self.threads_list:
             t.join()
 
+        self.try_peer_connect()
+        return self.connected_peers
+
+    def try_peer_connect(self):
+        for ip, port in self.list_ip_port:
+            print '> len connected_peers : ', len(self.connected_peers)
+            if len(self.connected_peers) > 8: break
+
+            if not ip in self.banned_ips:
+                new_peer = peer.Peer(self.torrent, ip, port)
+                if not new_peer.connect():
+                    self.banned_ips.append(ip)
+                else:
+                    self.connected_peers.append(new_peer)
+
+
     def http_scraper(self, torrent, tracker):
         params = {
             'info_hash': torrent.info_hash,
@@ -51,8 +70,8 @@ class Tracker(object):
         }
 
         try:
-            answerTracker = requests.get(tracker, params=params, timeout=3)
-            list_peers = bencode.bdecode(answerTracker.text)
+            answer_tracker = requests.get(tracker, params=params, timeout=5)
+            list_peers = bencode.bdecode(answer_tracker.content)
             self.parse_tracker_response(list_peers['peers'])
 
         except Exception as e:
@@ -67,7 +86,7 @@ class Tracker(object):
                 return
 
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            sock.settimeout(3)
+            sock.settimeout(10)
 
             conn = (ip, int(parsed.port))
             msg, trans_id, action = self.make_connection_id_request()
@@ -83,7 +102,8 @@ class Tracker(object):
             if not response:
                 return
 
-            self.parse_tracker_response(response[20:])
+            for ip, port in self.parse_tracker_response(response[20:]):
+                self.list_ip_port.append((ip, port))
 
         except Exception as e:
             logging.error("UDP scraping failed : %s" % e.message)
@@ -96,7 +116,7 @@ class Tracker(object):
             ip = ".".join(str(i) for i in raw_bytes[start:end - 2])
             port = raw_bytes[end - 2:end]
             port = port[1] + port[0] * 256
-            self.new_peers_queue.put([ip, port])
+            yield (ip, port)
 
     def make_connection_id_request(self):
         conn_id = struct.pack('>Q', 0x41727101980)

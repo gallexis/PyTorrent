@@ -16,14 +16,12 @@ This tool needs a lot of improvements, but it does its job, you can :
 -	Ask them for the blocks you want
 -	Save a block in RAM, and when a piece is completed and checked, write the data into you hard drive
 -	Deal with the one-file or multi-files torrents
+-	Leech or Seed to other peers
 
 But you can’t :
 -	Download more than one torrent at a time
--	Upload data to the BitTorrent network
--	Benefit of a good algorithm to ask your peers for blocks (like the rarest piece algo)
+-	Benefit of a good algorithm to ask your peers for blocks (code of rarest piece algo is implemented but is not used)
 -	Pause and resume download
--	Leech or Seed to other peers
--	And a lot of other things
 
 Don't hesitate to ask me questions if you need help, or send me a pull request for new features or improvements.
 

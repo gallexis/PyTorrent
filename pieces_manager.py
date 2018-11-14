@@ -3,13 +3,11 @@ __author__ = 'alexisgallepe'
 import piece
 import bitstring
 import logging
-from threading import Thread
 from pubsub import pub
 
 
-class PiecesManager(Thread):
+class PiecesManager(object):
     def __init__(self, torrent):
-        Thread.__init__(self)
         self.torrent = torrent
         self.is_full = False
         self.number_of_pieces = torrent.number_of_pieces
@@ -69,8 +67,12 @@ class PiecesManager(Thread):
                 piece_size = self.pieces[id_piece].piece_size - piece_size_used
 
                 if current_size_file - piece_size < 0:
-                    file = {"length": current_size_file, "idPiece": id_piece, "fileOffset": file_offset,
-                            "pieceOffset": piece_size_used, "path": f["path"]}
+                    file = {"length": current_size_file,
+                            "idPiece": id_piece,
+                            "fileOffset": file_offset,
+                            "pieceOffset": piece_size_used,
+                            "path": f["path"]
+                            }
                     piece_offset += current_size_file
                     file_offset += current_size_file
                     piece_size_used += current_size_file
@@ -78,8 +80,12 @@ class PiecesManager(Thread):
 
                 else:
                     current_size_file -= piece_size
-                    file = {"length": piece_size, "idPiece": id_piece, "fileOffset": file_offset,
-                            "pieceOffset": piece_size_used, "path": f["path"]}
+                    file = {"length": piece_size,
+                            "idPiece": id_piece,
+                            "fileOffset": file_offset,
+                            "pieceOffset": piece_size_used,
+                            "path": f["path"]
+                            }
                     piece_offset += piece_size
                     file_offset += piece_size
                     piece_size_used = 0

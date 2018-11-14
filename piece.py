@@ -81,7 +81,7 @@ class Piece(object):
             self.is_full = True
             self.raw_data = data
             self.write_piece_on_disk()
-            pub.sendMessage('PiecesManager.PieceCompleted', pieceIndex=self.piece_index)
+            pub.sendMessage('PiecesManager.PieceCompleted', piece_index=self.piece_index)
 
     def write_piece_on_disk(self):
         for file in self.files:

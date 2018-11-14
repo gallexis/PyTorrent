@@ -1,5 +1,3 @@
-import struct
-
 __author__ = 'alexisgallepe'
 
 import select
@@ -7,6 +5,11 @@ from threading import Thread
 from pubsub import pub
 import rarest_piece
 import logging
+import message
+import peer
+import errno
+import socket
+import random
 
 
 class PeersManager(Thread):
@@ -17,85 +20,109 @@ class PeersManager(Thread):
         self.pieces_manager = pieces_manager
         self.rarest_pieces = rarest_piece.RarestPieces(pieces_manager)
         self.pieces_by_peer = [[0, []] for _ in range(pieces_manager.number_of_pieces)]
+        self.is_active = True
 
         # Events
-        pub.subscribe(self.add_new_peer, 'PeersManager.newPeer')
         pub.subscribe(self.peer_requests_piece, 'PeersManager.PeerRequestsPiece')
         pub.subscribe(self.peers_bitfield, 'PeersManager.updatePeersBitfield')
 
-    def peers_bitfield(self, bitfield=None, peer=None, piece_index=None):
-        if piece_index:
-            self.pieces_by_peer[piece_index] = [None, []]
-            return
+    def peer_requests_piece(self, request=None, peer=None):
+        if not request or not peer:
+            logging.error("empty request/peer message")
 
+        piece_index, block_offset, block_length = request.piece_index, request.block_offset, request.block_length
+
+        block = self.pieces_manager.get_block(piece_index, block_offset, block_length)
+        if block:
+            piece = message.Piece(piece_index, block_offset, block_length, block).to_bytes()
+            peer.send_to_peer(piece)
+            logging.info("Sent piece index {} to peer : {}".format(request.piece_index, peer.ip))
+
+    def peers_bitfield(self, bitfield=None):
         for i in range(len(self.pieces_by_peer)):
             if bitfield[i] == 1 and peer not in self.pieces_by_peer[i][1] and self.pieces_by_peer[i][0]:
                 self.pieces_by_peer[i][1].append(peer)
                 self.pieces_by_peer[i][0] = len(self.pieces_by_peer[i][1])
 
-    def get_peer_having_piece(self, index):
-        for peer in self.peers:
-            if peer.is_choking() and peer.has_piece(index):
-                print '>>>', peer.is_choking(), peer.has_piece(index), index
-                return peer
+    def get_random_peer_having_piece(self, index):
+        ready_peers = []
 
-        return None
+        for peer in self.peers:
+            if peer.is_unchoked() and peer.am_interested() and peer.has_piece(index):
+                ready_peers.append(peer)
+
+        return random.choice(ready_peers) if ready_peers else None
 
     def has_unchoked_peers(self):
         for peer in self.peers:
-            if not peer.is_choking():
+            if peer.is_unchoked():
                 return True
         return False
 
     def unchoked_peers_count(self):
         cpt = 0
         for peer in self.peers:
-            if peer.is_choking():
+            if peer.is_unchoked():
                 cpt += 1
         return cpt
 
-    def run(self):
+    @staticmethod
+    def _read_from_socket(sock):
+        data = b''
+
         while True:
-            self.startConnectionToPeers()
+            try:
+                buff = sock.recv(4096)
+                if len(buff) <= 0:
+                    break
+
+                data += buff
+            except socket.error as e:
+                err = e.args[0]
+                if err != errno.EAGAIN or err != errno.EWOULDBLOCK:
+                    logging.error("Wrong errno {}".format(err))
+                break
+            except Exception as e:
+                logging.error("Recv failed : %s" % e.message)
+                break
+
+        return data
+
+    def run(self):
+        while self.is_active:
             read = [p.socket for p in self.peers]
             read_list, _, _ = select.select(read, [], [], 1)
 
-            # Receive from peers
             for socket in read_list:
                 peer = self.get_peer_by_socket(socket)
-                try:
-                    data = socket.recv(1024)
-                except Exception as e:
-                    logging.error("Error when receiving from peer : %s" % e.message)
+                if peer.to_remove:
                     self.remove_peer(peer)
                     continue
 
-                if len(data) == 0:
+                payload = self._read_from_socket(socket)
+                if not payload:
                     self.remove_peer(peer)
                     continue
 
-                print '(((', data
-                peer.read_buffer += data
+                peer.read_buffer += payload
 
-                self.handle_new_message(peer)
+                for message in peer.get_messages():
+                    self._process_new_message(message, peer)
 
-    def startConnectionToPeers(self):
-        for peer in self.peers:
-            if not peer.has_handshaked:
-                try:
-                    peer.sendToPeer(peer.handshake)
-                    interested = struct.pack('!I', 1) + struct.pack('!B', 2)
-                    peer.sendToPeer(interested)
-                except:
-                    self.remove_peer(peer)
-
-    def add_new_peer(self, peer):
+    def _add_new_peer(self, peer):
         try:
-            self.peers.append(peer)
+            handshake = message.Handshake(self.torrent.info_hash)
+            peer.send_to_peer(handshake.to_bytes())
+            logging.info("new peer added : %s" % peer.ip)
+            return peer
 
         except Exception as e:
-            logging.error("Error when sending Handshake or Interested message : %s" % e.message)
-            return
+            logging.error("Error when sending Handshake message : %s" % e.message)
+
+        return None
+
+    def add_peers(self, peers):
+        self.peers = filter(None, [self._add_new_peer(p) for p in peers])
 
     def remove_peer(self, peer):
         if peer in self.peers:
@@ -117,48 +144,43 @@ class PeersManager(Thread):
 
         raise Exception("Peer not present in peer_list")
 
-    def peer_requests_piece(self, peer, piece):
-        piece_index, block_offset, block_length = piece
-        request = peer.build_request(piece_index, block_offset, block_length)
-        peer.send_to_peer(request)
-        logging.info("Sent : peer_requests_piece (%s)" % str(piece))
+    def _process_new_message(self, new_message, peer):
+        """
+        :type peer: peer.Peer
+        :type new_message: message.Message
+        """
+        if isinstance(new_message, message.Handshake) or isinstance(new_message, message.KeepAlive):
+            logging.error("Handshake or KeepALive should have already be handled")
 
-    def request_piece(self, peer, piece_index, offset, block):
-        request = peer.build_request(piece_index, offset, block)
-        peer.send_to_peer(request)
-        logging.info("Sent : send_new_piece (%s)" % str((piece_index, offset)))
+        elif isinstance(new_message, message.Choke):
+            peer.handle_choke()
 
-    def handle_new_message(self, peer):
-        while len(peer.read_buffer) > 0:
-            if not peer.has_handshaked:
-                peer.check_handshake(peer.read_buffer)
-                logging.error("No handshake made")
-                break
+        elif isinstance(new_message, message.UnChoke):
+            peer.handle_unchoke()
 
-            message_length = struct.unpack('!I', peer.read_buffer[:4])[0]
+        elif isinstance(new_message, message.Interested):
+            peer.handle_interested()
 
-            if peer.is_keep_alive(peer.read_buffer):
-                break
+        elif isinstance(new_message, message.NotInterested):
+            peer.handle_not_interested()
 
-            try:
-                message_code = int(ord(peer.read_buffer[4:5]))
-                payload = peer.read_buffer[5:4 + message_length]
-            except Exception as e:
-                logging.info("Error when reading buffer : %s" % e.message)
-                break
+        elif isinstance(new_message, message.Have):
+            peer.handle_have(new_message)
 
-            # Message is not yet complete. Wait for next message
-            print '>>', payload, message_code, len(payload), message_length
+        elif isinstance(new_message, message.BitField):
+            peer.handle_bitfield(new_message)
 
-            if len(payload) < message_length - 1:
-                break
+        elif isinstance(new_message, message.Request):
+            peer.handle_request(new_message)
 
-            peer.read_buffer = peer.read_buffer[message_length + 4:]
+        elif isinstance(new_message, message.Piece):
+            peer.handle_piece(new_message)
 
-            try:
-                peer.map_code_to_handlers[message_code](payload)
-            except Exception as e:
-                logging.debug("Message_code error (%s) : %s " % (message_code, e.message))
-                break
+        elif isinstance(new_message, message.Cancel):
+            peer.handle_cancel()
 
-            peer.read_buffer = b''
+        elif isinstance(new_message, message.Port):
+            peer.handle_port_request()
+
+        else:
+            logging.error("Unknown message")

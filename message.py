@@ -11,8 +11,43 @@ HANDSHAKE_PSTR_LEN = len(HANDSHAKE_PSTR_V1)
 LENGTH_PREFIX = 4
 
 
-class Message(object):
+class WrongMessageException(Exception):
     pass
+
+
+class MessageDispatcher(object):
+
+    def __init__(self, payload):
+        self.payload = payload
+
+    def dispatch(self):
+        payload_length, message_id, = unpack(">IB", self.payload[:5])
+        id_mapping_to_message = {
+            0: Choke,
+            1: UnChoke,
+            2: Interested,
+            3: NotInterested,
+            4: Have,
+            5: BitField,
+            6: Request,
+            7: Piece,
+            8: Cancel,
+            9: Port
+        }
+
+        if message_id not in id_mapping_to_message.keys():
+            raise WrongMessageException("Wrong message id")
+
+        return id_mapping_to_message[message_id].from_bytes(self.payload)
+
+
+class Message(object):
+    def to_bytes(self):
+        raise NotImplementedError()
+
+    @classmethod
+    def from_bytes(cls, payload):
+        raise NotImplementedError()
 
 
 class Handshake(Message):
@@ -26,7 +61,6 @@ class Handshake(Message):
 
         Total length = payload length = 49 + len(pstr) = 68 bytes (for BitTorrent v1)
     """
-
     payload_length = 68
     total_length = payload_length
 
@@ -51,11 +85,8 @@ class Handshake(Message):
 
     @classmethod
     def from_bytes(cls, payload):
-        try:
-            pstrlen, = unpack(">B", payload[:1])
-            pstr, reserved, info_hash, peer_id = unpack(">{}s8s20s20s".format(pstrlen), payload[1:])
-        except unpack_exception:
-            raise ValueError("Invalid binary format for HandShake message")
+        pstrlen, = unpack(">B", payload[:1])
+        pstr, reserved, info_hash, peer_id = unpack(">{}s8s20s20s".format(pstrlen), payload[1:cls.total_length])
 
         if pstr != HANDSHAKE_PSTR_V1:
             raise ValueError("Invalid string identifier of the protocol")
@@ -71,7 +102,7 @@ class KeepAlive(Message):
     payload_length = 0
     total_length = 4
 
-    def __init__(self,):
+    def __init__(self):
         super(KeepAlive, self).__init__()
 
     def to_bytes(self):
@@ -79,13 +110,10 @@ class KeepAlive(Message):
 
     @classmethod
     def from_bytes(cls, payload):
-        try:
-            payload_length = unpack("!I", payload[:cls.total_length])
-            if payload_length != 0:
-                raise ValueError("Not a Keep Alive message")
+        payload_length = unpack(">I", payload[:cls.total_length])
 
-        except unpack_exception:
-            raise ValueError("Invalid binary format for Keep Alive message")
+        if payload_length != 0:
+            raise WrongMessageException("Not a Keep Alive message")
 
         return KeepAlive()
 
@@ -102,7 +130,7 @@ class Choke(Message):
     payload_length = 1
     total_length = 5
 
-    def __init__(self,):
+    def __init__(self):
         super(Choke, self).__init__()
 
     def to_bytes(self):
@@ -110,13 +138,9 @@ class Choke(Message):
 
     @classmethod
     def from_bytes(cls, payload):
-        try:
-            payload_length, message_id = unpack(">IB", payload[:cls.total_length])
-            if message_id != cls.message_id:
-                raise ValueError("Not a Choke message")
-
-        except unpack_exception:
-            raise ValueError("Invalid binary format for Choke message")
+        payload_length, message_id = unpack(">IB", payload[:cls.total_length])
+        if message_id != cls.message_id:
+            raise WrongMessageException("Not a Choke message")
 
         return Choke()
 
@@ -133,7 +157,7 @@ class UnChoke(Message):
     payload_length = 1
     total_length = 5
 
-    def __init__(self,):
+    def __init__(self):
         super(UnChoke, self).__init__()
 
     def to_bytes(self):
@@ -141,13 +165,10 @@ class UnChoke(Message):
 
     @classmethod
     def from_bytes(cls, payload):
-        try:
-            payload_length, message_id = unpack(">IB", payload[:cls.total_length])
-            if message_id != cls.message_id:
-                raise ValueError("Not an UnChoke message")
+        payload_length, message_id = unpack(">IB", payload[:cls.total_length])
 
-        except unpack_exception:
-            raise ValueError("Invalid binary format for Unchoke message")
+        if message_id != cls.message_id:
+            raise WrongMessageException("Not an UnChoke message")
 
         return UnChoke()
 
@@ -162,9 +183,9 @@ class Interested(Message):
     interested = True
 
     payload_length = 1
-    total_size = 4 + payload_length
+    total_length = 4 + payload_length
 
-    def __init__(self,):
+    def __init__(self):
         super(Interested, self).__init__()
 
     def to_bytes(self):
@@ -172,13 +193,10 @@ class Interested(Message):
 
     @classmethod
     def from_bytes(cls, payload):
-        try:
-            payload_length, message_id = unpack(">IB", payload[:cls.total_size])
-            if message_id != cls.message_id:
-                raise ValueError("Not an Interested message")
+        payload_length, message_id = unpack(">IB", payload[:cls.total_length])
 
-        except unpack_exception:
-            raise ValueError("Invalid binary format for Interested message")
+        if message_id != cls.message_id:
+            raise WrongMessageException("Not an Interested message")
 
         return Interested()
 
@@ -195,7 +213,7 @@ class NotInterested(Message):
     payload_length = 1
     total_length = 5
 
-    def __init__(self,):
+    def __init__(self):
         super(NotInterested, self).__init__()
 
     def to_bytes(self):
@@ -203,13 +221,9 @@ class NotInterested(Message):
 
     @classmethod
     def from_bytes(cls, payload):
-        try:
-            payload_length, message_id = unpack(">IB", payload[:cls.total_length])
-            if message_id != cls.message_id:
-                raise ValueError("Not an Interested message")
-
-        except unpack_exception:
-            raise ValueError("Invalid binary format for Interested message")
+        payload_length, message_id = unpack(">IB", payload[:cls.total_length])
+        if message_id != cls.message_id:
+            raise WrongMessageException("Not a Non Interested message")
 
         return Interested()
 
@@ -231,22 +245,15 @@ class Have(Message):
         self.piece_index = piece_index
 
     def to_bytes(self):
-        try:
-            return pack(">IBI", self.payload_length, self.message_id, self.piece_index)
-        except unpack_exception:
-            raise ValueError("Invalid values for encoding the Have instance")
+        pack(">IBI", self.payload_length, self.message_id, self.piece_index)
 
     @classmethod
-    def from_payload(cls, payload):
-        try:
-            payload_length, message_id, piece_index, = unpack(">IBI", payload[:cls.total_length])
-            if message_id != cls.message_id:
-                raise ValueError("Not a Have message")
+    def from_bytes(cls, payload):
+        payload_length, message_id, piece_index = unpack(">IBI", payload[:cls.total_length])
+        if message_id != cls.message_id:
+            raise WrongMessageException("Not a Have message")
 
-            return Have(piece_index)
-
-        except unpack_exception:
-            raise ValueError("Invalid binary format for Have message")
+        return Have(piece_index)
 
 
 class BitField(Message):
@@ -264,7 +271,7 @@ class BitField(Message):
 
     def __init__(self, bitfield):  # bitfield is a bitstring.BitArray
         super(BitField, self).__init__()
-
+        self.bitfield = bitfield
         self.bitfield_as_bytes = bitfield.tobytes()
         self.bitfield_length = len(self.bitfield_as_bytes)
 
@@ -278,14 +285,14 @@ class BitField(Message):
                     self.bitfield_as_bytes)
 
     @classmethod
-    def from_payload(cls, payload):
-        payload_length, message_id, = unpack(">IB", payload[:5])
+    def from_bytes(cls, payload):
+        payload_length, message_id = unpack(">IB", payload[:5])
         bitfield_length = payload_length - 1
 
         if message_id != cls.message_id:
-            raise ValueError("Not a BitField message")
+            raise WrongMessageException("Not a BitField message")
 
-        raw_bitfield = unpack(">{}s".format(bitfield_length), payload[5:bitfield_length])
+        raw_bitfield = unpack(">{}s".format(bitfield_length), payload[5:5+bitfield_length])
         bitfield = bitstring.BitArray(bytes=str(raw_bitfield))
 
         return BitField(bitfield)
@@ -313,27 +320,21 @@ class Request(Message):
         self.block_length = block_length
 
     def to_bytes(self):
-        try:
-            return pack(">IBIII",
-                        self.payload_length,
-                        self.message_id,
-                        self.piece_index,
-                        self.block_offset,
-                        self.block_length)
-        except unpack_exception:
-            raise ValueError("Invalid values for encoding the Request instance")
+        return pack(">IBIII",
+                    self.payload_length,
+                    self.message_id,
+                    self.piece_index,
+                    self.block_offset,
+                    self.block_length)
 
     @classmethod
-    def from_payload(cls, payload):
-        try:
-            payload_length, message_id, piece_index, block_offset, block_length = unpack(">IBIII", payload)
-            if message_id != cls.message_id:
-                raise ValueError("Not a Request message")
+    def from_bytes(cls, payload):
+        payload_length, message_id, piece_index, block_offset, block_length = unpack(">IBIII",
+                                                                                     payload[:cls.total_length])
+        if message_id != cls.message_id:
+            raise WrongMessageException("Not a Request message")
 
-            return Request(piece_index, block_offset, block_length)
-
-        except unpack_exception:
-            raise ValueError("Invalid binary format for Request message")
+        return Request(piece_index, block_offset, block_length)
 
 
 class Piece(Message):
@@ -361,30 +362,22 @@ class Piece(Message):
         self.total_length = 4 + self.payload_length
 
     def to_bytes(self):
-        try:
-            return pack(">IBII{}s".format(self.block_length),
-                        self.payload_length,
-                        self.message_id,
-                        self.piece_index,
-                        self.block_offset,
-                        self.block)
-        except unpack_exception:
-            raise ValueError("Invalid values for encoding the Piece instance")
+        return pack(">IBII{}s".format(self.block_length),
+                    self.payload_length,
+                    self.message_id,
+                    self.piece_index,
+                    self.block_offset,
+                    self.block)
 
     @classmethod
-    def from_payload(cls, payload):
+    def from_bytes(cls, payload):
         block_length = len(payload) - 13
-        try:
-            payload_length, message_id, piece_index, block_offset, block = unpack(">IBII{}s".format(block_length),
-                                                                                  payload)
+        payload_length, message_id, piece_index, block_offset, block = unpack(">IBII{}s".format(block_length),                                                                      payload[:13 + block_length])
 
-            if message_id != cls.message_id:
-                raise ValueError("Not a Piece message")
+        if message_id != cls.message_id:
+            raise WrongMessageException("Not a Piece message")
 
-            return Piece(block_length, piece_index, block_offset, block)
-
-        except unpack_exception:
-            raise ValueError("Invalid binary format for Piece message")
+        return Piece(block_length, piece_index, block_offset, block)
 
 
 class Cancel(Message):
@@ -407,27 +400,21 @@ class Cancel(Message):
         self.block_length = block_length
 
     def to_bytes(self):
-        try:
-            return pack(">IBIII",
-                        self.payload_length,
-                        self.message_id,
-                        self.piece_index,
-                        self.block_offset,
-                        self.block_length)
-        except unpack_exception:
-            raise ValueError("Invalid values for encoding the Cancel instance")
+        return pack(">IBIII",
+                    self.payload_length,
+                    self.message_id,
+                    self.piece_index,
+                    self.block_offset,
+                    self.block_length)
 
     @classmethod
-    def from_payload(cls, payload):
-        try:
-            payload_length, message_id, piece_index, block_offset, block_length = unpack(">IBIII", payload)
-            if message_id != cls.message_id:
-                raise ValueError("Not a Cancel message")
+    def from_bytes(cls, payload):
+        payload_length, message_id, piece_index, block_offset, block_length = unpack(">IBIII",
+                                                                                     payload[:cls.total_length])
+        if message_id != cls.message_id:
+            raise WrongMessageException("Not a Cancel message")
 
-            return Cancel(piece_index, block_offset, block_length)
-
-        except unpack_exception:
-            raise ValueError("Invalid binary format for Cancel message")
+        return Cancel(piece_index, block_offset, block_length)
 
 
 class Port(Message):
@@ -448,23 +435,16 @@ class Port(Message):
         self.listen_port = listen_port
 
     def to_bytes(self):
-        try:
-            return pack(">IBI",
-                        self.payload_length,
-                        self.message_id,
-                        self.listen_port)
-
-        except unpack_exception:
-            raise ValueError("Invalid values for encoding the Port instance")
+        return pack(">IBI",
+                    self.payload_length,
+                    self.message_id,
+                    self.listen_port)
 
     @classmethod
-    def from_payload(cls, payload):
-        try:
-            payload_length, message_id, listen_port, = unpack(">IBI", payload)
-            if message_id != cls.message_id:
-                raise ValueError("Not a Port message")
+    def from_bytes(cls, payload):
+        payload_length, message_id, listen_port = unpack(">IBI", payload[:cls.total_length])
 
-            return Port(listen_port)
+        if message_id != cls.message_id:
+            raise WrongMessageException("Not a Port message")
 
-        except unpack_exception:
-            raise ValueError("Invalid binary format for Port message")
+        return Port(listen_port)
