@@ -6,7 +6,7 @@ PyTorrent is a CLI tool that downloads files from the BitTorrent network.
 
 I wanted to make my own functional and straightforward program to learn how does BitTorrent protocol work and improve my python skills.
 
-It is almost written from scratch, python 2.7 without twisted.
+It is almost written from scratch, python 2.7 without the Twisted framework.
 Only the pubsub library was used to create events, when a new peer is connected, or when data is received from a peer.
 
 This tool needs a lot of improvements, but it does its job, you can :
@@ -14,13 +14,13 @@ This tool needs a lot of improvements, but it does its job, you can :
 -	Scrape udp or http trackers
 -	Connect to peers
 -	Ask them for the blocks you want
--	Save a block in RAM, and when a piece is completed and checked, write the data into you hard drive
+-	Save a block in RAM, and when a piece is completed and checked, write the data into your hard drive
 -	Deal with the one-file or multi-files torrents
 -	Leech or Seed to other peers
 
 But you can’t :
 -	Download more than one torrent at a time
--	Benefit of a good algorithm to ask your peers for blocks (code of rarest piece algo is implemented but is not used)
+-	Benefit of a good algorithm to ask your peers for blocks (code of rarest piece algo is implemented but not used yet)
 -	Pause and resume download
 
 Don't hesitate to ask me questions if you need help, or send me a pull request for new features or improvements.
