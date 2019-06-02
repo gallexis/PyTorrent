@@ -12,14 +12,14 @@ BLOCK_SIZE = 2 ** 14
 
 
 class Piece(object):
-    def __init__(self, piece_index, piece_size, piece_hash):
-        self.piece_index = piece_index
-        self.piece_size = piece_size
-        self.piece_hash = piece_hash
-        self.is_full = False
+    def __init__(self, piece_index: int, piece_size: int, piece_hash: str):
+        self.piece_index: int = piece_index
+        self.piece_size: int = piece_size
+        self.piece_hash: str = piece_hash
+        self.is_full: bool = False
         self.files = []
-        self.raw_data = b""
-        self.number_of_blocks = int(math.ceil(float(piece_size) / BLOCK_SIZE))
+        self.raw_data: bytes = b""
+        self.number_of_blocks: int = int(math.ceil(float(piece_size) / BLOCK_SIZE))
         self.blocks = []
 
         self.init_blocks()
@@ -94,8 +94,8 @@ class Piece(object):
                 f = open(path_file, 'r+b')  # Already existing file
             except IOError:
                 f = open(path_file, 'wb')  # New file
-            except Exception as e:
-                logging.error("Can't write to file : %s" % e.message)
+            except Exception:
+                logging.exception("Can't write to file")
                 return
 
             f.seek(file_offset)

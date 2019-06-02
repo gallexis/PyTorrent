@@ -45,8 +45,8 @@ class Peer(object):
             logging.info("Connected to peer ip: {} - port: {}".format(self.ip, self.port))
             return True
 
-        except Exception as e:
-            logging.error("Failed to connect to peer : %s" % e.message)
+        except Exception:
+            logging.exception("Failed to connect to peer : %s")
 
         return False
 
@@ -54,9 +54,9 @@ class Peer(object):
         try:
             if not self.to_remove:
                 self.socket.send(msg)
-        except Exception as e:
+        except Exception:
             self.to_remove = True
-            logging.error("Failed to send to peer : %s" % e.message)
+            logging.exception("Failed to send to peer")
 
     def has_piece(self, index):
         return self.bit_field[index]
@@ -156,8 +156,8 @@ class Peer(object):
             logging.debug('handle_handshake - %s' % self.ip)
             return True
 
-        except Exception as e:
-            logging.error("First message should always be an handshake message : %s" % e.message)
+        except Exception:
+            logging.exception("First message should always be a handshake message")
             self.to_remove = True
 
         return False
@@ -168,8 +168,8 @@ class Peer(object):
             logging.debug('handle_keep_alive - %s' % self.ip)
         except message.WrongMessageException:
             return False
-        except Exception as e:
-            logging.error("Error KeepALive, (need at least 4 bytes : {}) - {}".format(len(self.read_buffer), e.message))
+        except Exception:
+            logging.exception("Error KeepALive, (need at least 4 bytes : {})".format(len(self.read_buffer)))
             return False
 
         self.read_buffer = self.read_buffer[keep_alive.total_length:]
@@ -191,5 +191,5 @@ class Peer(object):
 
             try:
                 yield message.MessageDispatcher(payload).dispatch()
-            except message.WrongMessageException as e:
-                logging.error(e.message)
+            except message.WrongMessageException:
+                logging.exception("")

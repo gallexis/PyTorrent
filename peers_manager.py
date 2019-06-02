@@ -82,8 +82,8 @@ class PeersManager(Thread):
                 if err != errno.EAGAIN or err != errno.EWOULDBLOCK:
                     logging.error("Wrong errno {}".format(err))
                 break
-            except Exception as e:
-                logging.error("Recv failed : %s" % e.message)
+            except Exception:
+                logging.exception("Recv failed")
                 break
 
         return data
@@ -116,20 +116,20 @@ class PeersManager(Thread):
             logging.info("new peer added : %s" % peer.ip)
             return peer
 
-        except Exception as e:
-            logging.error("Error when sending Handshake message : %s" % e.message)
+        except Exception:
+            logging.exception("Error when sending Handshake message")
 
         return None
 
     def add_peers(self, peers):
-        self.peers = filter(None, [self._add_new_peer(p) for p in peers])
+        self.peers = [peer for peer in [self._add_new_peer(p) for p in peers] if peer]
 
     def remove_peer(self, peer):
         if peer in self.peers:
             try:
                 peer.socket.close()
-            except Exception as e:
-                logging.error(e.message)
+            except Exception:
+                logging.exception("")
 
             self.peers.remove(peer)
 

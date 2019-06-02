@@ -10,7 +10,7 @@ class PiecesManager(object):
     def __init__(self, torrent):
         self.torrent = torrent
         self.is_full = False
-        self.number_of_pieces = torrent.number_of_pieces
+        self.number_of_pieces = int(torrent.number_of_pieces)
         self.bitfield = bitstring.BitArray(self.number_of_pieces)
         self.pieces = self.generate_pieces()
         self.files = self.get_files()
@@ -63,7 +63,7 @@ class PiecesManager(object):
             file_offset = 0
 
             while current_size_file > 0:
-                id_piece = piece_offset / self.torrent.piece_length
+                id_piece = int(piece_offset / self.torrent.piece_length)
                 piece_size = self.pieces[id_piece].piece_size - piece_size_used
 
                 if current_size_file - piece_size < 0:

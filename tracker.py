@@ -6,7 +6,7 @@ import bencode
 import requests
 import logging
 import struct, random, socket
-from urlparse import urlparse
+from urllib.parse import urlparse
 import threading
 
 
@@ -28,7 +28,9 @@ class Tracker(object):
         self.connected_peers = []
 
     def get_peers_from_trackers(self):
+        print(self.torrent.announce_list)
         for tracker in self.torrent.announce_list:
+            print(tracker[0][:4])
             if tracker[0][:4] == "http":
                 continue
                 t1 = FuncThread(self.http_scraper, self.torrent, tracker[0])
@@ -48,7 +50,7 @@ class Tracker(object):
 
     def try_peer_connect(self):
         for ip, port in self.list_ip_port:
-            print '> len connected_peers : ', len(self.connected_peers)
+            print('> len connected_peers : ', len(self.connected_peers))
             if len(self.connected_peers) > 8: break
 
             if not ip in self.banned_ips:
@@ -105,8 +107,8 @@ class Tracker(object):
             for ip, port in self.parse_tracker_response(response[20:]):
                 self.list_ip_port.append((ip, port))
 
-        except Exception as e:
-            logging.error("UDP scraping failed : %s" % e.message)
+        except Exception:
+            logging.exception("UDP scraping failed")
 
     def parse_tracker_response(self, peers_byte):
         raw_bytes = [ord(c) for c in peers_byte]
@@ -150,10 +152,10 @@ class Tracker(object):
         try:
             response = sock.recv(2048)
         except socket.timeout as e:
-            logging.debug("Timeout : %s" % e.message)
+            logging.debug("Timeout : %s" % e)
             return
-        except Exception as e:
-            logging.error("Unexpected error when sending message : %s" % e.message)
+        except Exception:
+            logging.exception("Unexpected error when sending message")
             return
 
         if len(response) < size:

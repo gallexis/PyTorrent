@@ -1,7 +1,4 @@
-from struct import pack, unpack, error as unpack_exception
-
-# https://github.com/nbedos/PyTo/blob/master/pyto/messages.py
-
+from struct import pack, unpack
 
 # HandShake - String identifier of the protocol for BitTorrent V1
 import bitstring
@@ -9,7 +6,6 @@ import bitstring
 HANDSHAKE_PSTR_V1 = b"BitTorrent protocol"
 HANDSHAKE_PSTR_LEN = len(HANDSHAKE_PSTR_V1)
 LENGTH_PREFIX = 4
-
 
 class WrongMessageException(Exception):
     pass
@@ -35,7 +31,7 @@ class MessageDispatcher(object):
             9: Port
         }
 
-        if message_id not in id_mapping_to_message.keys():
+        if message_id not in list(id_mapping_to_message.keys()):
             raise WrongMessageException("Wrong message id")
 
         return id_mapping_to_message[message_id].from_bytes(self.payload)
@@ -344,7 +340,8 @@ class Piece(Message):
         - message id = 7 (1 byte)
         - piece index =  zero based piece index (4 bytes)
         - block offset = zero based of the requested block (4 bytes)
-        - block = block as a bytestring or bytearray (block_length bytes)"""
+        - block = block as a bytestring or bytearray (block_length bytes)
+    """
     message_id = 7
 
     payload_length = -1
