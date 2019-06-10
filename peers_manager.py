@@ -144,13 +144,9 @@ class PeersManager(Thread):
 
         raise Exception("Peer not present in peer_list")
 
-    def _process_new_message(self, new_message, peer):
-        """
-        :type peer: peer.Peer
-        :type new_message: message.Message
-        """
+    def _process_new_message(self, new_message: message.Message, peer: peer.Peer):
         if isinstance(new_message, message.Handshake) or isinstance(new_message, message.KeepAlive):
-            logging.error("Handshake or KeepALive should have already be handled")
+            logging.error("Handshake or KeepALive should have already been handled")
 
         elif isinstance(new_message, message.Choke):
             peer.handle_choke()

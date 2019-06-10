@@ -1,3 +1,5 @@
+from block import State
+
 __author__ = 'alexisgallepe'
 
 import time
@@ -61,8 +63,8 @@ class Run(object):
 
         for i in range(self.pieces_manager.number_of_pieces):
             for j in range(self.pieces_manager.pieces[i].number_of_blocks):
-                if self.pieces_manager.pieces[i].blocks[j][0] == "Full":
-                    new_progression += len(self.pieces_manager.pieces[i].blocks[j][2])
+                if self.pieces_manager.pieces[i].blocks[j].state == State.FULL:
+                    new_progression += len(self.pieces_manager.pieces[i].blocks[j].data)
 
         if new_progression == self.percentage_completed:
             return

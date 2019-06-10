@@ -7,6 +7,7 @@ HANDSHAKE_PSTR_V1 = b"BitTorrent protocol"
 HANDSHAKE_PSTR_LEN = len(HANDSHAKE_PSTR_V1)
 LENGTH_PREFIX = 4
 
+
 class WrongMessageException(Exception):
     pass
 
@@ -18,7 +19,7 @@ class MessageDispatcher(object):
 
     def dispatch(self):
         payload_length, message_id, = unpack(">IB", self.payload[:5])
-        id_mapping_to_message = {
+        map_id_to_message = {
             0: Choke,
             1: UnChoke,
             2: Interested,
@@ -31,10 +32,10 @@ class MessageDispatcher(object):
             9: Port
         }
 
-        if message_id not in list(id_mapping_to_message.keys()):
+        if message_id not in list(map_id_to_message.keys()):
             raise WrongMessageException("Wrong message id")
 
-        return id_mapping_to_message[message_id].from_bytes(self.payload)
+        return map_id_to_message[message_id].from_bytes(self.payload)
 
 
 class Message(object):
@@ -288,7 +289,7 @@ class BitField(Message):
         if message_id != cls.message_id:
             raise WrongMessageException("Not a BitField message")
 
-        raw_bitfield = unpack(">{}s".format(bitfield_length), payload[5:5+bitfield_length])
+        raw_bitfield = unpack(">{}s".format(bitfield_length), payload[5:5 + bitfield_length])
         bitfield = bitstring.BitArray(bytes=str(raw_bitfield))
 
         return BitField(bitfield)
@@ -369,7 +370,8 @@ class Piece(Message):
     @classmethod
     def from_bytes(cls, payload):
         block_length = len(payload) - 13
-        payload_length, message_id, piece_index, block_offset, block = unpack(">IBII{}s".format(block_length),                                                                      payload[:13 + block_length])
+        payload_length, message_id, piece_index, block_offset, block = unpack(">IBII{}s".format(block_length),
+                                                                              payload[:13 + block_length])
 
         if message_id != cls.message_id:
             raise WrongMessageException("Not a Piece message")

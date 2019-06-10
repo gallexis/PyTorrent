@@ -25,18 +25,6 @@ class Peer(object):
             'peer_choking': True,
             'peer_interested': False,
         }
-        self.map_code_to_handlers = {
-            0: self.handle_choke,
-            1: self.handle_unchoke,
-            2: self.handle_interested,
-            3: self.handle_not_interested,
-            4: self.handle_have,
-            5: self.handle_bitfield,
-            6: self.handle_request,
-            7: self.handle_piece,
-            8: self.handle_cancel,
-            9: self.handle_port_request
-        }
 
     def connect(self):
         try:

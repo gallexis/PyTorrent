@@ -1,14 +1,12 @@
-import hashlib
-
 __author__ = 'alexisgallepe'
 
+import hashlib
 import math
 import time
 import logging
 
 from pubsub import pub
-
-BLOCK_SIZE = 2 ** 14
+from block import Block, BLOCK_SIZE, State
 
 
 class Piece(object):
@@ -18,9 +16,9 @@ class Piece(object):
         self.piece_hash: str = piece_hash
         self.is_full: bool = False
         self.files = []
-        self.raw_data: bytes = b""
+        self.raw_data: bytes = b''
         self.number_of_blocks: int = int(math.ceil(float(piece_size) / BLOCK_SIZE))
-        self.blocks = []
+        self.blocks: list[Block] = []
 
         self.init_blocks()
 
@@ -29,20 +27,19 @@ class Piece(object):
 
         if self.number_of_blocks > 1:
             for i in range(self.number_of_blocks):
-                self.blocks.append(["Free", BLOCK_SIZE, b"", 0])
+                self.blocks.append(Block())
 
             # Last block of last piece, the special block
             if (self.piece_size % BLOCK_SIZE) > 0:
-                self.blocks[self.number_of_blocks - 1][1] = self.piece_size % BLOCK_SIZE
+                self.blocks[self.number_of_blocks - 1].block_size = self.piece_size % BLOCK_SIZE
 
         else:
-            self.blocks.append(["Free", int(self.piece_size), b"", 0])
+            self.blocks.append(Block(block_size=int(self.piece_size)))
 
     def update_block_status(self):  # if block is pending for too long : set it free
-        for block in self.blocks:
-            if (int(time.time()) - block[3]) > 8 and block[0] == "Pending":
-                block[0] = "Free"
-                block[3] = 0
+        for i, block in enumerate(self.blocks):
+            if block.state == State.PENDING and (int(time.time()) - block.last_seen) > 8:
+                self.blocks[i] = Block()
 
     def set_block(self, offset, data):
         if not self.all_blocks_full():
@@ -51,8 +48,8 @@ class Piece(object):
             else:
                 index = offset / BLOCK_SIZE
 
-            self.blocks[index][2] = data
-            self.blocks[index][0] = "Full"
+            self.blocks[index].data = data
+            self.blocks[index].state = State.FULL
 
     def get_block(self, block_offset, block_length):
         return self.raw_data[block_offset:block_length]
@@ -60,23 +57,27 @@ class Piece(object):
     def get_empty_block(self):
         if not self.is_full:
             block_index = 0
+
             for block in self.blocks:
-                if block[0] == "Free":
-                    block[0] = "Pending"
-                    block[3] = int(time.time())
-                    return self.piece_index, block_index * BLOCK_SIZE, block[1]
+                if block.state == State.FREE:
+                    block.state = State.PENDING
+                    block.last_seen = int(time.time())
+                    return self.piece_index, block_index * BLOCK_SIZE, block.block_size
+
                 block_index += 1
 
-        return False
+        return None
 
     def all_blocks_full(self):
         for block in self.blocks:
-            if block[0] == "Free" or block[0] == "Pending":
+            if block.state == State.FREE or block.state == State.PENDING:
                 return False
+
         return True
 
     def set_to_full(self):
         data = self.merge_blocks()
+
         if self.hash_is_correct(data):
             self.is_full = True
             self.raw_data = data
@@ -103,13 +104,16 @@ class Piece(object):
             f.close()
 
     def merge_blocks(self):
-        buf = b""
+        buf = b''
+
         for block in self.blocks:
-            buf += block[2]
+            buf += block.data
+
         return buf
 
     def hash_is_correct(self, piece_raw_data):
         hashed_piece_raw_data = hashlib.sha1(piece_raw_data).digest()
+
         if hashed_piece_raw_data == self.piece_hash:
             return True
         else:
