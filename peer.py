@@ -10,15 +10,15 @@ import message
 
 
 class Peer(object):
-    def __init__(self, torrent, ip, port=6881):
+    def __init__(self, number_of_pieces, ip, port=6881):
         self.has_handshaked = False
         self.to_remove = False
         self.read_buffer = b''
         self.socket = None
         self.ip = ip
         self.port = port
-        self.number_of_pieces = torrent.number_of_pieces
-        self.bit_field = bitstring.BitArray(torrent.number_of_pieces)
+        self.number_of_pieces = number_of_pieces
+        self.bit_field = bitstring.BitArray(number_of_pieces)
         self.state = {
             'am_choking': True,
             'am_interested': False,
@@ -26,25 +26,26 @@ class Peer(object):
             'peer_interested': False,
         }
 
+    def __str__(self):
+        return "%s:%d" % (self.ip, self.port)
+
     def connect(self):
         try:
-            self.socket = socket.create_connection((self.ip, self.port), timeout=5)
-            self.socket.setblocking(False)
+            self.socket = socket.create_connection((self.ip, self.port), timeout=3)
             logging.info("Connected to peer ip: {} - port: {}".format(self.ip, self.port))
-            return True
 
-        except Exception:
-            logging.exception("Failed to connect to peer : %s")
+        except Exception as e:
+            logging.error("Failed to connect to peer : %s" % e.__str__())
+            return False
 
-        return False
+        return True
 
-    def send_to_peer(self, msg):
+    def send(self, msg):
         try:
-            if not self.to_remove:
-                self.socket.send(msg)
-        except Exception:
-            self.to_remove = True
-            logging.exception("Failed to send to peer")
+            self.socket.send(msg)
+        except Exception as e:
+            print("1>?", self.socket)
+            logging.error("Failed to send to peer: %s" % e.__str__())
 
     def has_piece(self, index):
         return self.bit_field[index]
@@ -81,7 +82,7 @@ class Peer(object):
 
         if self.am_choking():
             unchoke = message.UnChoke().to_bytes()
-            self.send_to_peer(unchoke)
+            self.send(unchoke)
 
     def handle_not_interested(self):
         logging.debug('handle_not_interested - %s' % self.ip)
@@ -91,12 +92,12 @@ class Peer(object):
         """
         :type have: message.Have
         """
-        logging.debug('handle_have - %s' % self.ip)
+        logging.debug('handle_have - ip: %s - piece: %s' % (self.ip, have.piece_index))
         self.bit_field[have.piece_index] = True
 
-        if self.is_choking():
+        if self.is_choking() and not self.state['am_interested']:
             interested = message.Interested().to_bytes()
-            self.send_to_peer(interested)
+            self.send(interested)
             self.state['am_interested'] = True
 
         # pub.sendMessage('RarestPiece.updatePeersBitfield', bitfield=self.bit_field)
@@ -105,12 +106,12 @@ class Peer(object):
         """
         :type bitfield: message.BitField
         """
-        logging.debug('handle_bitfield - %s' % self.ip)
+        logging.debug('handle_bitfield - %s - %s' % (self.ip, bitfield.bitfield))
         self.bit_field = bitfield.bitfield
 
-        if self.is_choking():
+        if self.is_choking() and not self.state['am_interested']:
             interested = message.Interested().to_bytes()
-            self.send_to_peer(interested)
+            self.send(interested)
             self.state['am_interested'] = True
 
         # pub.sendMessage('RarestPiece.updatePeersBitfield', bitfield=self.bit_field)

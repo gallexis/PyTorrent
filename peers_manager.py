@@ -35,7 +35,7 @@ class PeersManager(Thread):
         block = self.pieces_manager.get_block(piece_index, block_offset, block_length)
         if block:
             piece = message.Piece(piece_index, block_offset, block_length, block).to_bytes()
-            peer.send_to_peer(piece)
+            peer.send(piece)
             logging.info("Sent piece index {} to peer : {}".format(request.piece_index, peer.ip))
 
     def peers_bitfield(self, bitfield=None):
@@ -66,8 +66,9 @@ class PeersManager(Thread):
                 cpt += 1
         return cpt
 
+
     @staticmethod
-    def _read_from_socket(sock):
+    def _read_from_udp_socket(sock):
         data = b''
 
         while True:
@@ -88,19 +89,37 @@ class PeersManager(Thread):
 
         return data
 
+    @staticmethod
+    def _read_from_tcp_socket(sock):
+        data = b''
+
+        while True:
+            buff = sock.recv(4096)
+            if len(buff) <= 0:
+                break
+
+            data += buff
+
+        if not data:
+            raise Exception("Received nothing from socket")
+
+        return data
+
     def run(self):
         while self.is_active:
-            read = [p.socket for p in self.peers]
+            read = [peer.socket for peer in self.peers]
             read_list, _, _ = select.select(read, [], [], 1)
 
             for socket in read_list:
                 peer = self.get_peer_by_socket(socket)
-                if peer.to_remove:
-                    self.remove_peer(peer)
-                    continue
+                #if peer.to_remove:
+                #    self.remove_peer(peer)
+                #    continue
 
-                payload = self._read_from_socket(socket)
-                if not payload:
+                try:
+                    payload = self._read_from_tcp_socket(socket)
+                except Exception as e:
+                    logging.error("Recv failed %s" % e.__str__())
                     self.remove_peer(peer)
                     continue
 
@@ -109,20 +128,24 @@ class PeersManager(Thread):
                 for message in peer.get_messages():
                     self._process_new_message(message, peer)
 
-    def _add_new_peer(self, peer):
+    def _do_handshake(self, peer):
         try:
             handshake = message.Handshake(self.torrent.info_hash)
-            peer.send_to_peer(handshake.to_bytes())
+            peer.send(handshake.to_bytes())
             logging.info("new peer added : %s" % peer.ip)
-            return peer
+            return True
 
         except Exception:
             logging.exception("Error when sending Handshake message")
 
-        return None
+        return False
 
     def add_peers(self, peers):
-        self.peers = [peer for peer in [self._add_new_peer(p) for p in peers] if peer]
+        for peer in peers:
+            if self._do_handshake(peer):
+                self.peers.append(peer)
+            else:
+                print("Error _do_handshake")
 
     def remove_peer(self, peer):
         if peer in self.peers:
@@ -133,9 +156,9 @@ class PeersManager(Thread):
 
             self.peers.remove(peer)
 
-        for rarest_piece in self.rarest_pieces.rarest_pieces:
-            if peer in rarest_piece["peers"]:
-                rarest_piece["peers"].remove(peer)
+        #for rarest_piece in self.rarest_pieces.rarest_pieces:
+        #    if peer in rarest_piece["peers"]:
+        #        rarest_piece["peers"].remove(peer)
 
     def get_peer_by_socket(self, socket):
         for peer in self.peers:

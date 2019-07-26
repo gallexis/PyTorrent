@@ -27,8 +27,8 @@ class Run(object):
         logging.info("PiecesManager Started")
 
     def start(self):
-        peers = self.tracker.get_peers_from_trackers()
-        self.peers_manager.add_peers(peers)
+        peers_dict = self.tracker.get_peers_from_trackers()
+        self.peers_manager.add_peers(peers_dict.values())
 
         while not self.pieces_manager.all_pieces_completed():
             if not self.peers_manager.has_unchoked_peers():
@@ -47,7 +47,7 @@ class Run(object):
                 if data:
                     piece_index, block_offset, block_length = data
                     piece_data = message.Request(piece_index, block_offset, block_length).to_bytes()
-                    peer.send_to_peer(piece_data)
+                    peer.send(piece_data)
 
                 if piece.all_blocks_full():
                     piece.set_to_full()
@@ -86,3 +86,7 @@ if __name__ == '__main__':
 
     run = Run()
     run.start()
+
+
+
+
