@@ -1,3 +1,5 @@
+import time
+
 __author__ = 'alexisgallepe'
 
 import socket
@@ -11,8 +13,9 @@ import message
 
 class Peer(object):
     def __init__(self, number_of_pieces, ip, port=6881):
+        self.last_call = 0.
         self.has_handshaked = False
-        self.to_remove = False
+        self.healthy = False
         self.read_buffer = b''
         self.socket = None
         self.ip = ip
@@ -26,13 +29,15 @@ class Peer(object):
             'peer_interested': False,
         }
 
-    def __str__(self):
+    def __hash__(self):
         return "%s:%d" % (self.ip, self.port)
 
     def connect(self):
         try:
-            self.socket = socket.create_connection((self.ip, self.port), timeout=3)
+            self.socket = socket.create_connection((self.ip, self.port), timeout=2)
+            self.socket.setblocking(False)
             logging.info("Connected to peer ip: {} - port: {}".format(self.ip, self.port))
+            self.healthy = True
 
         except Exception as e:
             logging.error("Failed to connect to peer : %s" % e.__str__())
@@ -40,12 +45,24 @@ class Peer(object):
 
         return True
 
-    def send(self, msg):
+    def send_to_peer(self, msg):
         try:
-            self.socket.send(msg)
+            if self.healthy:
+                self.socket.send(msg)
+            else:
+                print("not healthy")
         except Exception as e:
-            print("1>?", self.socket)
-            logging.error("Failed to send to peer: %s" % e.__str__())
+            self.healthy = False
+            logging.error("Failed to send to peer : %s" % e.__str__())
+
+    def is_eligible(self):
+        now = time.time()
+        is_eligible = (now - self.last_call) > 0.2
+
+        if is_eligible:
+            self.last_call = now
+
+        return is_eligible
 
     def has_piece(self, index):
         return self.bit_field[index]
@@ -82,7 +99,7 @@ class Peer(object):
 
         if self.am_choking():
             unchoke = message.UnChoke().to_bytes()
-            self.send(unchoke)
+            self.send_to_peer(unchoke)
 
     def handle_not_interested(self):
         logging.debug('handle_not_interested - %s' % self.ip)
@@ -97,7 +114,7 @@ class Peer(object):
 
         if self.is_choking() and not self.state['am_interested']:
             interested = message.Interested().to_bytes()
-            self.send(interested)
+            self.send_to_peer(interested)
             self.state['am_interested'] = True
 
         # pub.sendMessage('RarestPiece.updatePeersBitfield', bitfield=self.bit_field)
@@ -111,7 +128,7 @@ class Peer(object):
 
         if self.is_choking() and not self.state['am_interested']:
             interested = message.Interested().to_bytes()
-            self.send(interested)
+            self.send_to_peer(interested)
             self.state['am_interested'] = True
 
         # pub.sendMessage('RarestPiece.updatePeersBitfield', bitfield=self.bit_field)
@@ -147,7 +164,7 @@ class Peer(object):
 
         except Exception:
             logging.exception("First message should always be a handshake message")
-            self.to_remove = True
+            self.healthy = False
 
         return False
 
@@ -165,7 +182,7 @@ class Peer(object):
         return True
 
     def get_messages(self):
-        while len(self.read_buffer) > 4 and not self.to_remove:
+        while len(self.read_buffer) > 4 and self.healthy:
             if (not self.has_handshaked and self._handle_handshake()) or self._handle_keep_alive():
                 continue
 

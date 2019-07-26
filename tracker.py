@@ -13,7 +13,7 @@ import socket
 from urllib.parse import urlparse
 
 MAX_PEERS_TRY_CONNECT = 30
-MAX_PEERS_CONNECTED = 3
+MAX_PEERS_CONNECTED = 8
 
 
 class SockAddr:
@@ -67,7 +67,7 @@ class Tracker(object):
                 continue
 
             print('Connected to %d peers' % len(self.connected_peers))
-            self.connected_peers[new_peer.__str__()] = new_peer
+            self.connected_peers[new_peer.__hash__()] = new_peer
 
     def http_scraper(self, torrent, tracker):
         params = {
@@ -140,7 +140,7 @@ class Tracker(object):
         sock.sendto(message, conn)
 
         try:
-            response = PeersManager._read_from_udp_socket(sock)
+            response = PeersManager._read_from_socket(sock)
 
         except socket.timeout as e:
             logging.debug("Timeout : %s" % e)

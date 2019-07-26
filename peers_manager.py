@@ -35,7 +35,7 @@ class PeersManager(Thread):
         block = self.pieces_manager.get_block(piece_index, block_offset, block_length)
         if block:
             piece = message.Piece(piece_index, block_offset, block_length, block).to_bytes()
-            peer.send(piece)
+            peer.send_to_peer(piece)
             logging.info("Sent piece index {} to peer : {}".format(request.piece_index, peer.ip))
 
     def peers_bitfield(self, bitfield=None):
@@ -48,7 +48,7 @@ class PeersManager(Thread):
         ready_peers = []
 
         for peer in self.peers:
-            if peer.is_unchoked() and peer.am_interested() and peer.has_piece(index):
+            if peer.is_eligible() and peer.is_unchoked() and peer.am_interested() and peer.has_piece(index):
                 ready_peers.append(peer)
 
         return random.choice(ready_peers) if ready_peers else None
@@ -68,7 +68,7 @@ class PeersManager(Thread):
 
 
     @staticmethod
-    def _read_from_udp_socket(sock):
+    def _read_from_socket(sock):
         data = b''
 
         while True:
@@ -89,22 +89,6 @@ class PeersManager(Thread):
 
         return data
 
-    @staticmethod
-    def _read_from_tcp_socket(sock):
-        data = b''
-
-        while True:
-            buff = sock.recv(4096)
-            if len(buff) <= 0:
-                break
-
-            data += buff
-
-        if not data:
-            raise Exception("Received nothing from socket")
-
-        return data
-
     def run(self):
         while self.is_active:
             read = [peer.socket for peer in self.peers]
@@ -112,12 +96,12 @@ class PeersManager(Thread):
 
             for socket in read_list:
                 peer = self.get_peer_by_socket(socket)
-                #if peer.to_remove:
-                #    self.remove_peer(peer)
-                #    continue
+                if not peer.healthy:
+                    self.remove_peer(peer)
+                    continue
 
                 try:
-                    payload = self._read_from_tcp_socket(socket)
+                    payload = self._read_from_socket(socket)
                 except Exception as e:
                     logging.error("Recv failed %s" % e.__str__())
                     self.remove_peer(peer)
@@ -131,7 +115,7 @@ class PeersManager(Thread):
     def _do_handshake(self, peer):
         try:
             handshake = message.Handshake(self.torrent.info_hash)
-            peer.send(handshake.to_bytes())
+            peer.send_to_peer(handshake.to_bytes())
             logging.info("new peer added : %s" % peer.ip)
             return True
 

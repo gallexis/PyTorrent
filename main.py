@@ -35,19 +35,23 @@ class Run(object):
                 time.sleep(0.1)
                 continue
 
-            self.display_progression()
-
             for piece in self.pieces_manager.pieces:
-                if piece.is_full: continue
+                if piece.is_full:
+                    continue
 
                 peer = self.peers_manager.get_random_peer_having_piece(piece.piece_index)
-                if not peer: continue
+                if not peer:
+                    continue
 
                 data = self.pieces_manager.pieces[piece.piece_index].get_empty_block()
-                if data:
-                    piece_index, block_offset, block_length = data
-                    piece_data = message.Request(piece_index, block_offset, block_length).to_bytes()
-                    peer.send(piece_data)
+                if not data:
+                    continue
+
+                piece_index, block_offset, block_length = data
+                piece_data = message.Request(piece_index, block_offset, block_length).to_bytes()
+                peer.send_to_peer(piece_data)
+
+                self.display_progression()
 
                 if piece.all_blocks_full():
                     piece.set_to_full()

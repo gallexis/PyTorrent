@@ -46,7 +46,7 @@ class Piece(object):
             if offset == 0:
                 index = 0
             else:
-                index = offset / BLOCK_SIZE
+                index = int(offset / BLOCK_SIZE)
 
             self.blocks[index].data = data
             self.blocks[index].state = State.FULL
@@ -55,16 +55,14 @@ class Piece(object):
         return self.raw_data[block_offset:block_length]
 
     def get_empty_block(self):
-        if not self.is_full:
-            block_index = 0
+        if self.is_full:
+            return None
 
-            for block in self.blocks:
-                if block.state == State.FREE:
-                    block.state = State.PENDING
-                    block.last_seen = int(time.time())
-                    return self.piece_index, block_index * BLOCK_SIZE, block.block_size
-
-                block_index += 1
+        for block_index, block in enumerate(self.blocks):
+            if block.state == State.FREE:
+                self.blocks[block_index].state = State.PENDING
+                self.blocks[block_index].last_seen = int(time.time())
+                return self.piece_index, block_index * BLOCK_SIZE, block.block_size
 
         return None
 
