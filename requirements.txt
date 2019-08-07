@@ -1,5 +1,6 @@
-bencode == 1.0
+bcoding==1
 bitstring == 3.1.5
 PyPubSub == 3.3.0
 requests >= 2.20.0
 pubsub == 0.1.1
+ipaddress == 1.0.22

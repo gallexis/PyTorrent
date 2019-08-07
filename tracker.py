@@ -1,63 +1,74 @@
+import ipaddress
+
 import peer
+from message import UdpTrackerConnection, UdpTrackerAnnounce, UdpTrackerAnnounceOutput
+from peers_manager import PeersManager
 
 __author__ = 'alexisgallepe'
 
-import bencode
 import requests
 import logging
-import struct, random, socket
-from urlparse import urlparse
-import threading
+from bcoding import bdecode
+import socket
+from urllib.parse import urlparse
+
+MAX_PEERS_TRY_CONNECT = 30
+MAX_PEERS_CONNECTED = 8
 
 
-class FuncThread(threading.Thread):
-    def __init__(self, target, *args):
-        self._target = target
-        self._args = args
-        threading.Thread.__init__(self)
+class SockAddr:
+    def __init__(self, ip, port, allowed=True):
+        self.ip = ip
+        self.port = port
+        self.allowed = allowed
 
-    def run(self):
-        self._target(*self._args)
+    def __hash__(self):
+        return "%s:%d" % (self.ip, self.port)
+
 
 class Tracker(object):
     def __init__(self, torrent):
         self.torrent = torrent
         self.threads_list = []
-        self.list_ip_port = []
-        self.banned_ips = []
-        self.connected_peers = []
+        self.connected_peers = {}
+        self.dict_sock_addr = {}
 
     def get_peers_from_trackers(self):
-        for tracker in self.torrent.announce_list:
+        for i, tracker in enumerate(self.torrent.announce_list):
+            """
             if tracker[0][:4] == "http":
-                continue
-                t1 = FuncThread(self.http_scraper, self.torrent, tracker[0])
-                self.threads_list.append(t1)
-                t1.start()
+                p = Process(target=self.http_scraper, args=(self.q, self.torrent, tracker[0],))
+                self.threads_list.append(p)
+                p.start()
+            """
 
-            elif tracker[0][:3] == "udp":
-                t2 = FuncThread(self.udp_scrapper, self.torrent, tracker[0])
-                self.threads_list.append(t2)
-                t2.start()
+            if len(self.dict_sock_addr) >= MAX_PEERS_TRY_CONNECT:
+                break
 
-        for t in self.threads_list:
-            t.join()
+            if tracker[0][:3] == "udp":
+                try:
+                    self.udp_scrapper(tracker[0])
+                except Exception as e:
+                    logging.error("UDP scraping failed: %s " % e.__str__())
 
         self.try_peer_connect()
+
         return self.connected_peers
 
     def try_peer_connect(self):
-        for ip, port in self.list_ip_port:
-            print '> len connected_peers : ', len(self.connected_peers)
-            if len(self.connected_peers) > 8: break
+        logging.info("Trying to connect to %d peer(s)" % len(self.dict_sock_addr))
 
-            if not ip in self.banned_ips:
-                new_peer = peer.Peer(self.torrent, ip, port)
-                if not new_peer.connect():
-                    self.banned_ips.append(ip)
-                else:
-                    self.connected_peers.append(new_peer)
+        for _, sock_addr in self.dict_sock_addr.items():
+            if len(self.connected_peers) >= MAX_PEERS_CONNECTED:
+                break
 
+            new_peer = peer.Peer(int(self.torrent.number_of_pieces), sock_addr.ip, sock_addr.port)
+            if not new_peer.connect():
+                continue
+
+            print('Connected to %d/%d peers' % (len(self.connected_peers), MAX_PEERS_CONNECTED))
+
+            self.connected_peers[new_peer.__hash__()] = new_peer
 
     def http_scraper(self, torrent, tracker):
         params = {
@@ -71,97 +82,78 @@ class Tracker(object):
 
         try:
             answer_tracker = requests.get(tracker, params=params, timeout=5)
-            list_peers = bencode.bdecode(answer_tracker.content)
-            self.parse_tracker_response(list_peers['peers'])
+            list_peers = bdecode(answer_tracker.content)
+            t = UdpTrackerAnnounceOutput()
 
-        except Exception as e:
-            logging.debug("HTTP scraping failed : %s" % e.message)
+            t.from_bytes(list_peers['peers'])
 
-    def udp_scrapper(self, torrent, announce):
-        try:
-            parsed = urlparse(announce)
-            ip = socket.gethostbyname(parsed.hostname)
+            for ip, port in list_peers['peers']:
+                s = SockAddr(ip, port)
+                self.dict_sock_addr[s.__hash__()] = s
 
-            if ip == '127.0.0.1':
-                return
+        except Exception:
+            logging.exception("HTTP scraping failed")
 
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            sock.settimeout(10)
+    def udp_scrapper(self, announce):
+        torrent = self.torrent
+        parsed = urlparse(announce)
 
-            conn = (ip, int(parsed.port))
-            msg, trans_id, action = self.make_connection_id_request()
-            response = self.send_message(conn, sock, msg, trans_id, action, 16)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.settimeout(4)
+        ip, port = socket.gethostbyname(parsed.hostname), parsed.port
 
-            if not response:
-                return
+        if ipaddress.ip_address(ip).is_private:
+            return
 
-            conn_id = response[8:]
-            msg, trans_id, action = self.make_announce_input(torrent.info_hash, conn_id, torrent.peer_id)
-            response = self.send_message(conn, sock, msg, trans_id, action, 20)
+        tracker_connection_input = UdpTrackerConnection()
+        response = self.send_message((ip, port), sock, tracker_connection_input)
 
-            if not response:
-                return
+        if not response:
+            raise Exception("No response for UdpTrackerConnection")
 
-            for ip, port in self.parse_tracker_response(response[20:]):
-                self.list_ip_port.append((ip, port))
+        tracker_connection_output = UdpTrackerConnection()
+        tracker_connection_output.from_bytes(response)
 
-        except Exception as e:
-            logging.error("UDP scraping failed : %s" % e.message)
+        tracker_announce_input = UdpTrackerAnnounce(torrent.info_hash, tracker_connection_output.conn_id,
+                                                    torrent.peer_id)
+        response = self.send_message((ip, port), sock, tracker_announce_input)
 
-    def parse_tracker_response(self, peers_byte):
-        raw_bytes = [ord(c) for c in peers_byte]
-        for i in range(len(raw_bytes) / 6):
-            start = i * 6
-            end = start + 6
-            ip = ".".join(str(i) for i in raw_bytes[start:end - 2])
-            port = raw_bytes[end - 2:end]
-            port = port[1] + port[0] * 256
-            yield (ip, port)
+        if not response:
+            raise Exception("No response for UdpTrackerAnnounce")
 
-    def make_connection_id_request(self):
-        conn_id = struct.pack('>Q', 0x41727101980)
-        action = struct.pack('>I', 0)
-        trans_id = struct.pack('>I', random.randint(0, 100000))
+        tracker_announce_output = UdpTrackerAnnounceOutput()
+        tracker_announce_output.from_bytes(response)
 
-        return conn_id + action + trans_id, trans_id, action
+        for ip, port in tracker_announce_output.list_sock_addr:
+            sock_addr = SockAddr(ip, port)
 
-    def make_announce_input(self, info_hash, conn_id, peer_id):
-        action = struct.pack('>I', 1)
-        trans_id = struct.pack('>I', random.randint(0, 100000))
+            if sock_addr.__hash__() not in self.dict_sock_addr:
+                self.dict_sock_addr[sock_addr.__hash__()] = sock_addr
 
-        downloaded = struct.pack('>Q', 0)
-        left = struct.pack('>Q', 0)
-        uploaded = struct.pack('>Q', 0)
+        print("Got %d peers" % len(self.dict_sock_addr))
 
-        event = struct.pack('>I', 0)
-        ip = struct.pack('>I', 0)
-        key = struct.pack('>I', 0)
-        num_want = struct.pack('>i', -1)
-        port = struct.pack('>h', 8000)
+    def send_message(self, conn, sock, tracker_message):
+        message = tracker_message.to_bytes()
+        trans_id = tracker_message.trans_id
+        action = tracker_message.action
+        size = len(message)
 
-        msg = (conn_id + action + trans_id + info_hash + peer_id + downloaded +
-               left + uploaded + event + ip + key + num_want + port)
-
-        return msg, trans_id, action
-
-    def send_message(self, conn, sock, msg, trans_id, action, size):
-        sock.sendto(msg, conn)
+        sock.sendto(message, conn)
 
         try:
-            response = sock.recv(2048)
+            response = PeersManager._read_from_socket(sock)
         except socket.timeout as e:
-            logging.debug("Timeout : %s" % e.message)
+            logging.debug("Timeout : %s" % e)
             return
         except Exception as e:
-            logging.error("Unexpected error when sending message : %s" % e.message)
+            logging.exception("Unexpected error when sending message : %s" % e.__str__())
             return
 
         if len(response) < size:
-            logging.debug("Did not get full message. Connecting again...")
-            return self.send_message(conn, sock, msg, trans_id, action, size)
+            logging.debug("Did not get full message.")
 
         if action != response[0:4] or trans_id != response[4:8]:
-            logging.debug("Transaction or Action ID did not match. Trying again...")
-            return self.send_message(conn, sock, msg, trans_id, action, size)
+            logging.debug("Transaction or Action ID did not match")
 
         return response

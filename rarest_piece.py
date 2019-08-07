@@ -23,8 +23,8 @@ class RarestPieces(object):
         try:
             if not piece_index == None:
                 self.rarest_pieces.__delitem__(piece_index)
-        except Exception as e:
-                logging.error("Failed to remove rarest piece : %s" % e.message)
+        except Exception:
+                logging.exception("Failed to remove rarest piece")
 
         # Peer's bitfield updated
         else:

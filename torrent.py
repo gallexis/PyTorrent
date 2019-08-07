@@ -1,9 +1,10 @@
-import hashlib
+import math
 
 __author__ = 'alexisgallepe'
 
+import hashlib
 import time
-import bencode
+from bcoding import bencode, bdecode
 import logging
 import os
 
@@ -11,34 +12,28 @@ import os
 class Torrent(object):
     def __init__(self):
         self.torrent_file = {}
-        self.total_length = 0
-        self.piece_length = 0
-        self.pieces = 0
-        self.info_hash = ""
-        self.peer_id = ""
-        self.announce_list = ""
+        self.total_length: int = 0
+        self.piece_length: int = 0
+        self.pieces: int = 0
+        self.info_hash: str = ''
+        self.peer_id: str = ''
+        self.announce_list = ''
         self.file_names = []
-        self.number_of_pieces = 0
+        self.number_of_pieces: int = 0
 
     def load_from_path(self, path):
-        with open(path, 'r') as file:
-            contents = file.read()
+        with open(path, 'rb') as file:
+            contents = bdecode(file)
 
-        self.torrent_file = bencode.bdecode(contents)
+        self.torrent_file = contents
         self.piece_length = self.torrent_file['info']['piece length']
         self.pieces = self.torrent_file['info']['pieces']
-        raw_info_hash = str(bencode.bencode(self.torrent_file['info']))
+        raw_info_hash = bencode(self.torrent_file['info'])
         self.info_hash = hashlib.sha1(raw_info_hash).digest()
         self.peer_id = self.generate_peer_id()
         self.announce_list = self.get_trakers()
-
         self.init_files()
-
-        if self.total_length % self.piece_length == 0:
-            self.number_of_pieces = self.total_length / self.piece_length
-        else:
-            self.number_of_pieces = (self.total_length / self.piece_length) + 1
-
+        self.number_of_pieces = math.ceil(self.total_length / self.piece_length)
         logging.debug(self.announce_list)
         logging.debug(self.file_names)
 
@@ -52,7 +47,7 @@ class Torrent(object):
 
         if 'files' in self.torrent_file['info']:
             if not os.path.exists(root):
-                os.mkdir(root, 0766 )
+                os.mkdir(root, 0o0766 )
 
             for file in self.torrent_file['info']['files']:
                 path_file = os.path.join(root, *file["path"])
@@ -75,4 +70,4 @@ class Torrent(object):
 
     def generate_peer_id(self):
         seed = str(time.time())
-        return hashlib.sha1(seed).digest()
+        return hashlib.sha1(seed.encode('utf-8')).digest()

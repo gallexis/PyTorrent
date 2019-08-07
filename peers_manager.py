@@ -1,3 +1,5 @@
+import time
+
 __author__ = 'alexisgallepe'
 
 import select
@@ -48,7 +50,7 @@ class PeersManager(Thread):
         ready_peers = []
 
         for peer in self.peers:
-            if peer.is_unchoked() and peer.am_interested() and peer.has_piece(index):
+            if peer.is_eligible() and peer.is_unchoked() and peer.am_interested() and peer.has_piece(index):
                 ready_peers.append(peer)
 
         return random.choice(ready_peers) if ready_peers else None
@@ -66,6 +68,7 @@ class PeersManager(Thread):
                 cpt += 1
         return cpt
 
+
     @staticmethod
     def _read_from_socket(sock):
         data = b''
@@ -80,27 +83,29 @@ class PeersManager(Thread):
             except socket.error as e:
                 err = e.args[0]
                 if err != errno.EAGAIN or err != errno.EWOULDBLOCK:
-                    logging.error("Wrong errno {}".format(err))
+                    logging.debug("Wrong errno {}".format(err))
                 break
-            except Exception as e:
-                logging.error("Recv failed : %s" % e.message)
+            except Exception:
+                logging.exception("Recv failed")
                 break
 
         return data
 
     def run(self):
         while self.is_active:
-            read = [p.socket for p in self.peers]
+            read = [peer.socket for peer in self.peers]
             read_list, _, _ = select.select(read, [], [], 1)
 
             for socket in read_list:
                 peer = self.get_peer_by_socket(socket)
-                if peer.to_remove:
+                if not peer.healthy:
                     self.remove_peer(peer)
                     continue
 
-                payload = self._read_from_socket(socket)
-                if not payload:
+                try:
+                    payload = self._read_from_socket(socket)
+                except Exception as e:
+                    logging.error("Recv failed %s" % e.__str__())
                     self.remove_peer(peer)
                     continue
 
@@ -109,33 +114,37 @@ class PeersManager(Thread):
                 for message in peer.get_messages():
                     self._process_new_message(message, peer)
 
-    def _add_new_peer(self, peer):
+    def _do_handshake(self, peer):
         try:
             handshake = message.Handshake(self.torrent.info_hash)
             peer.send_to_peer(handshake.to_bytes())
             logging.info("new peer added : %s" % peer.ip)
-            return peer
+            return True
 
-        except Exception as e:
-            logging.error("Error when sending Handshake message : %s" % e.message)
+        except Exception:
+            logging.exception("Error when sending Handshake message")
 
-        return None
+        return False
 
     def add_peers(self, peers):
-        self.peers = filter(None, [self._add_new_peer(p) for p in peers])
+        for peer in peers:
+            if self._do_handshake(peer):
+                self.peers.append(peer)
+            else:
+                print("Error _do_handshake")
 
     def remove_peer(self, peer):
         if peer in self.peers:
             try:
                 peer.socket.close()
-            except Exception as e:
-                logging.error(e.message)
+            except Exception:
+                logging.exception("")
 
             self.peers.remove(peer)
 
-        for rarest_piece in self.rarest_pieces.rarest_pieces:
-            if peer in rarest_piece["peers"]:
-                rarest_piece["peers"].remove(peer)
+        #for rarest_piece in self.rarest_pieces.rarest_pieces:
+        #    if peer in rarest_piece["peers"]:
+        #        rarest_piece["peers"].remove(peer)
 
     def get_peer_by_socket(self, socket):
         for peer in self.peers:
@@ -144,13 +153,9 @@ class PeersManager(Thread):
 
         raise Exception("Peer not present in peer_list")
 
-    def _process_new_message(self, new_message, peer):
-        """
-        :type peer: peer.Peer
-        :type new_message: message.Message
-        """
+    def _process_new_message(self, new_message: message.Message, peer: peer.Peer):
         if isinstance(new_message, message.Handshake) or isinstance(new_message, message.KeepAlive):
-            logging.error("Handshake or KeepALive should have already be handled")
+            logging.error("Handshake or KeepALive should have already been handled")
 
         elif isinstance(new_message, message.Choke):
             peer.handle_choke()
