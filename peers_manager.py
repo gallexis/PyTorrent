@@ -1,3 +1,5 @@
+import time
+
 __author__ = 'alexisgallepe'
 
 import select
@@ -81,7 +83,7 @@ class PeersManager(Thread):
             except socket.error as e:
                 err = e.args[0]
                 if err != errno.EAGAIN or err != errno.EWOULDBLOCK:
-                    logging.error("Wrong errno {}".format(err))
+                    logging.debug("Wrong errno {}".format(err))
                 break
             except Exception:
                 logging.exception("Recv failed")

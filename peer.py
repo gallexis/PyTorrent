@@ -13,7 +13,7 @@ import message
 
 class Peer(object):
     def __init__(self, number_of_pieces, ip, port=6881):
-        self.last_call = 0.
+        self.last_call = 0.0
         self.has_handshaked = False
         self.healthy = False
         self.read_buffer = b''
@@ -36,33 +36,26 @@ class Peer(object):
         try:
             self.socket = socket.create_connection((self.ip, self.port), timeout=2)
             self.socket.setblocking(False)
-            logging.info("Connected to peer ip: {} - port: {}".format(self.ip, self.port))
+            logging.debug("Connected to peer ip: {} - port: {}".format(self.ip, self.port))
             self.healthy = True
 
         except Exception as e:
-            logging.error("Failed to connect to peer : %s" % e.__str__())
+            print("Failed to connect to peer (ip: %s - port: %s - %s)" % (self.ip, self.port, e.__str__()))
             return False
 
         return True
 
     def send_to_peer(self, msg):
         try:
-            if self.healthy:
-                self.socket.send(msg)
-            else:
-                print("not healthy")
+            self.socket.send(msg)
+            self.last_call = time.time()
         except Exception as e:
             self.healthy = False
             logging.error("Failed to send to peer : %s" % e.__str__())
 
     def is_eligible(self):
         now = time.time()
-        is_eligible = (now - self.last_call) > 0.2
-
-        if is_eligible:
-            self.last_call = now
-
-        return is_eligible
+        return (now - self.last_call) > 0.2
 
     def has_piece(self, index):
         return self.bit_field[index]
@@ -145,7 +138,7 @@ class Peer(object):
         """
         :type message: message.Piece
         """
-        logging.debug('handle_piece - %s' % self.ip)
+        print('handle_piece %d, %d, %d - %s' % (message.piece_index, message.block_offset, len(message.block), self.ip))
         pub.sendMessage('PiecesManager.Piece', piece=(message.piece_index, message.block_offset, message.block))
 
     def handle_cancel(self):
@@ -196,6 +189,8 @@ class Peer(object):
                 self.read_buffer = self.read_buffer[total_length:]
 
             try:
-                yield message.MessageDispatcher(payload).dispatch()
+                m = message.MessageDispatcher(payload).dispatch()
+                if m:
+                    yield m
             except message.WrongMessageException:
                 logging.exception("")

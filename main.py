@@ -32,18 +32,23 @@ class Run(object):
 
         while not self.pieces_manager.all_pieces_completed():
             if not self.peers_manager.has_unchoked_peers():
-                time.sleep(0.1)
+                time.sleep(1)
+                logging.info("No unchocked peers")
                 continue
 
             for piece in self.pieces_manager.pieces:
-                if piece.is_full:
+                index = piece.piece_index
+
+                if self.pieces_manager.pieces[index].is_full:
                     continue
 
-                peer = self.peers_manager.get_random_peer_having_piece(piece.piece_index)
+                peer = self.peers_manager.get_random_peer_having_piece(index)
                 if not peer:
                     continue
 
-                data = self.pieces_manager.pieces[piece.piece_index].get_empty_block()
+                self.pieces_manager.pieces[index].update_block_status()
+
+                data = self.pieces_manager.pieces[index].get_empty_block()
                 if not data:
                     continue
 
@@ -53,12 +58,10 @@ class Run(object):
 
                 self.display_progression()
 
-                if piece.all_blocks_full():
-                    piece.set_to_full()
-
-                piece.update_block_status()
-
             time.sleep(0.1)
+
+        logging.info("File(s) downloaded successfully.")
+        self.display_progression()
 
         self._exit_threads()
 
@@ -76,7 +79,11 @@ class Run(object):
         number_of_peers = self.peers_manager.unchoked_peers_count()
         percentage_completed = float((float(new_progression) / self.torrent.total_length) * 100)
 
-        print("Number of peers: {} - Completed : {}%".format(number_of_peers, percentage_completed))
+        print("Number of peers: {} - Completed : {}% | Got {}/{} pieces".
+              format(number_of_peers,
+                     round(percentage_completed, 2),
+                     self.pieces_manager.complete_pieces,
+                     self.pieces_manager.number_of_pieces))
 
         self.percentage_completed = new_progression
 
@@ -86,11 +93,7 @@ class Run(object):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
 
     run = Run()
     run.start()
-
-
-
-

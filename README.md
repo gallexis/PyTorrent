@@ -6,8 +6,8 @@ PyTorrent is a CLI tool that downloads files from the BitTorrent network.
 
 I wanted to make my own functional and straightforward program to learn how does BitTorrent protocol work and improve my python skills.
 
-It is almost written from scratch, python 2.7 without twisted.
-Only the pubsub library was used to create events, when a new peer is connected, or when data is received from a peer.
+It is almost written from scratch with python 3.7, only the pubsub library was used to create events when a new peer is connected, or when data is received from a peer.
+You first need to wait for the program to connect to some peers first, then it starts downloading.
 
 This tool needs a lot of improvements, but it does its job, you can :
 -	Read a torrent file

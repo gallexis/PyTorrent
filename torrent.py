@@ -1,3 +1,5 @@
+import math
+
 __author__ = 'alexisgallepe'
 
 import hashlib
@@ -30,14 +32,8 @@ class Torrent(object):
         self.info_hash = hashlib.sha1(raw_info_hash).digest()
         self.peer_id = self.generate_peer_id()
         self.announce_list = self.get_trakers()
-
         self.init_files()
-
-        if self.total_length % self.piece_length == 0:
-            self.number_of_pieces = self.total_length / self.piece_length
-        else:
-            self.number_of_pieces = (self.total_length / self.piece_length) + 1
-
+        self.number_of_pieces = math.ceil(self.total_length / self.piece_length)
         logging.debug(self.announce_list)
         logging.debug(self.file_names)
 

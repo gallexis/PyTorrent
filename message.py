@@ -1,3 +1,4 @@
+import logging
 import random
 import socket
 from struct import pack, unpack
@@ -19,7 +20,12 @@ class MessageDispatcher:
         self.payload = payload
 
     def dispatch(self):
-        payload_length, message_id, = unpack(">IB", self.payload[:5])
+        try:
+            payload_length, message_id, = unpack(">IB", self.payload[:5])
+        except:
+            logging.exception("Error when unpacking message")
+            return None
+
         map_id_to_message = {
             0: Choke,
             1: UnChoke,
@@ -37,7 +43,6 @@ class MessageDispatcher:
             raise WrongMessageException("Wrong message id")
 
         return map_id_to_message[message_id].from_bytes(self.payload)
-
 
 
 class Message:

@@ -20,34 +20,17 @@ class Piece(object):
         self.number_of_blocks: int = int(math.ceil(float(piece_size) / BLOCK_SIZE))
         self.blocks: list[Block] = []
 
-        self.init_blocks()
-
-    def init_blocks(self):
-        self.blocks = []
-
-        if self.number_of_blocks > 1:
-            for i in range(self.number_of_blocks):
-                self.blocks.append(Block())
-
-            # Last block of last piece, the special block
-            if (self.piece_size % BLOCK_SIZE) > 0:
-                self.blocks[self.number_of_blocks - 1].block_size = self.piece_size % BLOCK_SIZE
-
-        else:
-            self.blocks.append(Block(block_size=int(self.piece_size)))
+        self._init_blocks()
 
     def update_block_status(self):  # if block is pending for too long : set it free
         for i, block in enumerate(self.blocks):
-            if block.state == State.PENDING and (int(time.time()) - block.last_seen) > 8:
+            if block.state == State.PENDING and (time.time() - block.last_seen) > 5:
                 self.blocks[i] = Block()
 
     def set_block(self, offset, data):
-        if not self.all_blocks_full():
-            if offset == 0:
-                index = 0
-            else:
-                index = int(offset / BLOCK_SIZE)
+        index = int(offset / BLOCK_SIZE)
 
+        if not self.is_full and not self.blocks[index].state == State.FULL:
             self.blocks[index].data = data
             self.blocks[index].state = State.FULL
 
@@ -61,12 +44,12 @@ class Piece(object):
         for block_index, block in enumerate(self.blocks):
             if block.state == State.FREE:
                 self.blocks[block_index].state = State.PENDING
-                self.blocks[block_index].last_seen = int(time.time())
+                self.blocks[block_index].last_seen = time.time()
                 return self.piece_index, block_index * BLOCK_SIZE, block.block_size
 
         return None
 
-    def all_blocks_full(self):
+    def are_all_blocks_full(self):
         for block in self.blocks:
             if block.state == State.FREE or block.state == State.PENDING:
                 return False
@@ -74,15 +57,34 @@ class Piece(object):
         return True
 
     def set_to_full(self):
-        data = self.merge_blocks()
+        data = self._merge_blocks()
 
-        if self.hash_is_correct(data):
-            self.is_full = True
-            self.raw_data = data
-            self.write_piece_on_disk()
-            pub.sendMessage('PiecesManager.PieceCompleted', piece_index=self.piece_index)
+        if not self._valid_blocks(data):
+            self._init_blocks()
+            return False
 
-    def write_piece_on_disk(self):
+        self.is_full = True
+        self.raw_data = data
+        self._write_piece_on_disk()
+        pub.sendMessage('PiecesManager.PieceCompleted', piece_index=self.piece_index)
+
+        return True
+
+    def _init_blocks(self):
+        self.blocks = []
+
+        if self.number_of_blocks > 1:
+            for i in range(self.number_of_blocks):
+                self.blocks.append(Block())
+
+            # Last block of last piece, the special block
+            if (self.piece_size % BLOCK_SIZE) > 0:
+                self.blocks[self.number_of_blocks - 1].block_size = self.piece_size % BLOCK_SIZE
+
+        else:
+            self.blocks.append(Block(block_size=int(self.piece_size)))
+
+    def _write_piece_on_disk(self):
         for file in self.files:
             path_file = file["path"]
             file_offset = file["fileOffset"]
@@ -101,7 +103,7 @@ class Piece(object):
             f.write(self.raw_data[piece_offset:piece_offset + length])
             f.close()
 
-    def merge_blocks(self):
+    def _merge_blocks(self):
         buf = b''
 
         for block in self.blocks:
@@ -109,13 +111,12 @@ class Piece(object):
 
         return buf
 
-    def hash_is_correct(self, piece_raw_data):
+    def _valid_blocks(self, piece_raw_data):
         hashed_piece_raw_data = hashlib.sha1(piece_raw_data).digest()
 
         if hashed_piece_raw_data == self.piece_hash:
             return True
-        else:
-            logging.warning("Error Piece Hash")
-            logging.debug("{} : {}".format(hashed_piece_raw_data, self.piece_hash))
-            self.init_blocks()
-            return False
+
+        logging.warning("Error Piece Hash")
+        logging.debug("{} : {}".format(hashed_piece_raw_data, self.piece_hash))
+        return False

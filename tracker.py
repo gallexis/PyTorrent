@@ -13,7 +13,7 @@ import socket
 from urllib.parse import urlparse
 
 MAX_PEERS_TRY_CONNECT = 30
-MAX_PEERS_CONNECTED = 8
+MAX_PEERS_CONNECTED = 2
 
 
 class SockAddr:
@@ -66,7 +66,8 @@ class Tracker(object):
             if not new_peer.connect():
                 continue
 
-            print('Connected to %d peers' % len(self.connected_peers))
+            print('Connected to %d/%d peers' % (len(self.connected_peers), MAX_PEERS_CONNECTED))
+
             self.connected_peers[new_peer.__hash__()] = new_peer
 
     def http_scraper(self, torrent, tracker):
@@ -129,7 +130,8 @@ class Tracker(object):
 
             if sock_addr.__hash__() not in self.dict_sock_addr:
                 self.dict_sock_addr[sock_addr.__hash__()] = sock_addr
-                print("Got %d peers" % len(self.dict_sock_addr))
+
+        print("Got %d peers" % len(self.dict_sock_addr))
 
     def send_message(self, conn, sock, tracker_message):
         message = tracker_message.to_bytes()
@@ -141,7 +143,6 @@ class Tracker(object):
 
         try:
             response = PeersManager._read_from_socket(sock)
-
         except socket.timeout as e:
             logging.debug("Timeout : %s" % e)
             return

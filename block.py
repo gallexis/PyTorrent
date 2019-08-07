@@ -6,9 +6,9 @@ BLOCK_SIZE = 2 ** 14
 
 
 class State(Enum):
-    FREE = 1
-    PENDING = 2
-    FULL = 3
+    FREE = 0
+    PENDING = 1
+    FULL = 2
 
 
 class Block():
@@ -17,3 +17,6 @@ class Block():
         self.block_size: int = block_size
         self.data: bytes = data
         self.last_seen: float = last_seen
+
+    def __str__(self):
+        return "%s - %d - %d - %d" % (self.state, self.block_size, len(self.data), self.last_seen)
