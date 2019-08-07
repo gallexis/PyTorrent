@@ -13,7 +13,7 @@ import socket
 from urllib.parse import urlparse
 
 MAX_PEERS_TRY_CONNECT = 30
-MAX_PEERS_CONNECTED = 2
+MAX_PEERS_CONNECTED = 8
 
 
 class SockAddr:

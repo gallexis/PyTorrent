@@ -138,7 +138,6 @@ class Peer(object):
         """
         :type message: message.Piece
         """
-        print('handle_piece %d, %d, %d - %s' % (message.piece_index, message.block_offset, len(message.block), self.ip))
         pub.sendMessage('PiecesManager.Piece', piece=(message.piece_index, message.block_offset, message.block))
 
     def handle_cancel(self):
