@@ -14,13 +14,13 @@ This tool needs a lot of improvements, but it does its job, you can :
 -	Scrape udp or http trackers
 -	Connect to peers
 -	Ask them for the blocks you want
--	Save a block in RAM, and when a piece is completed and checked, write the data into you hard drive
+-	Save a block in RAM, and when a piece is completed and checked, write the data into your hard drive
 -	Deal with the one-file or multi-files torrents
 -	Leech or Seed to other peers
 
 But you can’t :
 -	Download more than one torrent at a time
--	Benefit of a good algorithm to ask your peers for blocks (code of rarest piece algo is implemented but is not used)
+-	Benefit of a good algorithm to ask your peers for blocks (code of rarest piece algo is implemented but not used yet)
 -	Pause and resume download
 
 Don't hesitate to ask me questions if you need help, or send me a pull request for new features or improvements.
@@ -46,6 +46,7 @@ The files will be downloaded in the same path as your run.py script.
 
 I wouldn't go that far without the help of
 [Lita](https://github.com/lita/bittorrent "Lita"), 
+[PyTo](https://github.com/nbedos/PyTo/blob/master/pyto/messages.py "PyTo") for the message encoding/decoding logic, 
 [Kristen Widman's](http://www.kristenwidman.com/blog/how-to-write-a-bittorrent-client-part-1 "Kristen Widman's blog") & the
 [Bittorrent Unofficial Spec](https://wiki.theory.org/BitTorrentSpecification "Bittorrent Unofficial Spec"), so thank you.
 
