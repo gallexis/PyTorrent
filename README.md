@@ -40,7 +40,7 @@ self.torrent = Torrent.Torrent("path_to_your_torrent")
 Then simply run:
 `python main.py`
 
-The files will be downloaded in the same path as your run.py script.
+The files will be downloaded in the same path as your main.py script.
 
 ### Sources :
 
