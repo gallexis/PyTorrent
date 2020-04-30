@@ -44,7 +44,7 @@ The files will be downloaded in the same path as your main.py script.
 
 ### Sources :
 
-I wouldn't go that far without the help of
+I wouldn't have gone that far without the help of
 [Lita](https://github.com/lita/bittorrent "Lita"), 
 [PyTo](https://github.com/nbedos/PyTo/blob/master/pyto/messages.py "PyTo") for the message encoding/decoding logic, 
 [Kristen Widman's](http://www.kristenwidman.com/blog/how-to-write-a-bittorrent-client-part-1 "Kristen Widman's blog") & the
