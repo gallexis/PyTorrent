@@ -93,7 +93,7 @@ class Run(object):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
 
     run = Run()
     run.start()

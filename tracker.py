@@ -35,21 +35,25 @@ class Tracker(object):
 
     def get_peers_from_trackers(self):
         for i, tracker in enumerate(self.torrent.announce_list):
-            """
-            if tracker[0][:4] == "http":
-                p = Process(target=self.http_scraper, args=(self.q, self.torrent, tracker[0],))
-                self.threads_list.append(p)
-                p.start()
-            """
-
             if len(self.dict_sock_addr) >= MAX_PEERS_TRY_CONNECT:
                 break
 
-            if tracker[0][:3] == "udp":
+            tracker_url = tracker[0]
+
+            if str.startswith(tracker_url, "http"):
                 try:
-                    self.udp_scrapper(tracker[0])
+                    self.http_scraper(self.torrent, tracker_url)
+                except Exception as e:
+                    logging.error("HTTP scraping failed: %s " % e.__str__())
+
+            elif str.startswith(tracker_url, "udp"):
+                try:
+                    self.udp_scrapper(tracker_url)
                 except Exception as e:
                     logging.error("UDP scraping failed: %s " % e.__str__())
+
+            else:
+                logging.error("unknown scheme for: %s " % tracker_url)
 
         self.try_peer_connect()
 
@@ -76,6 +80,7 @@ class Tracker(object):
             'peer_id': torrent.peer_id,
             'uploaded': 0,
             'downloaded': 0,
+            'port': 6881,
             'left': torrent.total_length,
             'event': 'started'
         }
@@ -83,12 +88,9 @@ class Tracker(object):
         try:
             answer_tracker = requests.get(tracker, params=params, timeout=5)
             list_peers = bdecode(answer_tracker.content)
-            t = UdpTrackerAnnounceOutput()
 
-            t.from_bytes(list_peers['peers'])
-
-            for ip, port in list_peers['peers']:
-                s = SockAddr(ip, port)
+            for p in list_peers['peers']:
+                s = SockAddr(p['ip'], p['port'])
                 self.dict_sock_addr[s.__hash__()] = s
 
         except Exception:
