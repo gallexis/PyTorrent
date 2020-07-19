@@ -1,6 +1,6 @@
 bcoding==1.5
-bitstring == 3.1.5
-PyPubSub == 3.3.0
+bitstring == 3.1.7
+PyPubSub == 4.0.3
 requests >= 2.24.0
-pubsub == 0.1.1
-ipaddress == 1.0.22
+pubsub == 0.1.2
+ipaddress == 1.0.23

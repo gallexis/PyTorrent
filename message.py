@@ -14,6 +14,7 @@ LENGTH_PREFIX = 4
 class WrongMessageException(Exception):
     pass
 
+
 class MessageDispatcher:
 
     def __init__(self, payload):
@@ -22,8 +23,8 @@ class MessageDispatcher:
     def dispatch(self):
         try:
             payload_length, message_id, = unpack(">IB", self.payload[:5])
-        except:
-            logging.exception("Error when unpacking message")
+        except Exception as e:
+            logging.warning("Error when unpacking message : %s" % e.__str__())
             return None
 
         map_id_to_message = {
@@ -188,6 +189,7 @@ class UdpTrackerAnnounceOutput:
 """
     Bittorrent messages
 """
+
 
 class Handshake(Message):
     """

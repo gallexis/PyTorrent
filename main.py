@@ -14,6 +14,7 @@ import message
 
 class Run(object):
     percentage_completed = -1
+    last_log_line = ""
 
     def __init__(self):
         self.torrent = torrent.Torrent().load_from_path("torrent.torrent")
@@ -56,7 +57,7 @@ class Run(object):
                 piece_data = message.Request(piece_index, block_offset, block_length).to_bytes()
                 peer.send_to_peer(piece_data)
 
-                self.display_progression()
+            self.display_progression()
 
             time.sleep(0.1)
 
@@ -79,12 +80,14 @@ class Run(object):
         number_of_peers = self.peers_manager.unchoked_peers_count()
         percentage_completed = float((float(new_progression) / self.torrent.total_length) * 100)
 
-        print("Number of peers: {} - Completed : {}% | Got {}/{} pieces".
-              format(number_of_peers,
-                     round(percentage_completed, 2),
-                     self.pieces_manager.complete_pieces,
-                     self.pieces_manager.number_of_pieces))
+        current_log_line = "Connected peers: {} - {}% completed | {}/{} pieces".format(number_of_peers,
+                                                                                         round(percentage_completed, 2),
+                                                                                         self.pieces_manager.complete_pieces,
+                                                                                         self.pieces_manager.number_of_pieces)
+        if current_log_line != self.last_log_line:
+            print(current_log_line)
 
+        self.last_log_line = current_log_line
         self.percentage_completed = new_progression
 
     def _exit_threads(self):

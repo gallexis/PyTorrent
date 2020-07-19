@@ -188,8 +188,8 @@ class Peer(object):
                 self.read_buffer = self.read_buffer[total_length:]
 
             try:
-                m = message.MessageDispatcher(payload).dispatch()
-                if m:
-                    yield m
-            except message.WrongMessageException:
-                logging.exception("")
+                received_message = message.MessageDispatcher(payload).dispatch()
+                if received_message:
+                    yield received_message
+            except message.WrongMessageException as e:
+                logging.exception(e.__str__())

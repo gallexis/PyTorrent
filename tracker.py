@@ -93,8 +93,8 @@ class Tracker(object):
                 s = SockAddr(p['ip'], p['port'])
                 self.dict_sock_addr[s.__hash__()] = s
 
-        except Exception:
-            logging.exception("HTTP scraping failed")
+        except Exception as e:
+            logging.exception("HTTP scraping failed: %s" % e.__str__())
 
     def udp_scrapper(self, announce):
         torrent = self.torrent
