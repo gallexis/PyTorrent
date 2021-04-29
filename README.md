@@ -1,6 +1,5 @@
 
 # PyTorrent - Python BitTorrent
-![Image of Fiverr](https://assetsv2.fiverrcdn.com/assets/favicon-16x16-5eb118ca03b795f9dca72cd0d84d5775.png) &nbsp; [Hire me for your Go projects](https://rebrand.ly/ewu6o0l)
 
 
 PyTorrent is a CLI tool that downloads files from the BitTorrent network.
