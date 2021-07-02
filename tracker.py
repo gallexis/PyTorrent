@@ -1,5 +1,5 @@
 import ipaddress
-
+import struct
 import peer
 from message import UdpTrackerConnection, UdpTrackerAnnounce, UdpTrackerAnnounceOutput
 from peers_manager import PeersManager
@@ -88,10 +88,20 @@ class Tracker(object):
         try:
             answer_tracker = requests.get(tracker, params=params, timeout=5)
             list_peers = bdecode(answer_tracker.content)
-
-            for p in list_peers['peers']:
-                s = SockAddr(p['ip'], p['port'])
-                self.dict_sock_addr[s.__hash__()] = s
+            offset=0
+            if not type(list_peers['peers']) == dict:
+                    for _ in range(len(list_peers['peers'])//6):
+                        ip  =   struct.unpack_from("!i", list_peers['peers'], offset)[0]
+                        ip =   socket.inet_ntoa(struct.pack("!i", ip))
+                        offset  +=  4
+                        port   =   struct.unpack_from("!H",list_peers['peers'], offset)[0]
+                        offset  +=  2
+                        s=SockAddr(ip,port)
+                        self.dict_sock_addr[s.__hash__()]=s
+            else:
+                for p in list_peers['peers']:
+                    s = SockAddr(p['ip'], p['port'])
+                    self.dict_sock_addr[s.__hash__()] = s
 
         except Exception as e:
             logging.exception("HTTP scraping failed: %s" % e.__str__())
