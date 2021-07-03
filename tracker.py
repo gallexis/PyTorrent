@@ -100,10 +100,8 @@ class Tracker(object):
                     - To unpack next 2 byets !H(big-endian, 2 bytes) is used.
                 '''
                     for _ in range(len(list_peers['peers'])//6):
-                        
                         ip = struct.unpack_from("!i", list_peers['peers'], offset)[0]
                         ip = socket.inet_ntoa(struct.pack("!i", ip))
-                        #ntoa= numbers to stirng
                         offset += 4
                         port = struct.unpack_from("!H",list_peers['peers'], offset)[0]
                         offset += 2
