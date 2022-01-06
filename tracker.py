@@ -99,14 +99,14 @@ class Tracker(object):
                     - To unpack initial 4 bytes !i (big-endian, 4 bytes) is used.
                     - To unpack next 2 byets !H(big-endian, 2 bytes) is used.
                 '''
-                    for _ in range(len(list_peers['peers'])//6):
-                        ip = struct.unpack_from("!i", list_peers['peers'], offset)[0]
-                        ip = socket.inet_ntoa(struct.pack("!i", ip))
-                        offset += 4
-                        port = struct.unpack_from("!H",list_peers['peers'], offset)[0]
-                        offset += 2
-                        s = SockAddr(ip,port)
-                        self.dict_sock_addr[s.__hash__()] = s
+                for _ in range(len(list_peers['peers'])//6):
+                    ip = struct.unpack_from("!i", list_peers['peers'], offset)[0]
+                    ip = socket.inet_ntoa(struct.pack("!i", ip))
+                    offset += 4
+                    port = struct.unpack_from("!H",list_peers['peers'], offset)[0]
+                    offset += 2
+                    s = SockAddr(ip,port)
+                    self.dict_sock_addr[s.__hash__()] = s
             else:
                 for p in list_peers['peers']:
                     s = SockAddr(p['ip'], p['port'])
