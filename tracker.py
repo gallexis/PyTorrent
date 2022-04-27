@@ -3,6 +3,7 @@ import struct
 import peer
 from message import UdpTrackerConnection, UdpTrackerAnnounce, UdpTrackerAnnounceOutput
 from peers_manager import PeersManager
+from threading import Thread
 
 __author__ = 'alexisgallepe'
 
@@ -14,7 +15,6 @@ from urllib.parse import urlparse
 
 MAX_PEERS_TRY_CONNECT = 30
 MAX_PEERS_CONNECTED = 8
-
 
 class SockAddr:
     def __init__(self, ip, port, allowed=True):
@@ -34,6 +34,10 @@ class Tracker(object):
         self.dict_sock_addr = {}
 
     def get_peers_from_trackers(self):
+        logging.info("---------------------------------------")
+        logging.info(f"Trackers: {self.torrent.announce_list}")
+        logging.info("---------------------------------------")
+
         for i, tracker in enumerate(self.torrent.announce_list):
             if len(self.dict_sock_addr) >= MAX_PEERS_TRY_CONNECT:
                 break
@@ -51,7 +55,6 @@ class Tracker(object):
                     self.udp_scrapper(tracker_url)
                 except Exception as e:
                     logging.error("UDP scraping failed: %s " % e.__str__())
-
             else:
                 logging.error("unknown scheme for: %s " % tracker_url)
 
@@ -62,17 +65,26 @@ class Tracker(object):
     def try_peer_connect(self):
         logging.info("Trying to connect to %d peer(s)" % len(self.dict_sock_addr))
 
+        def task(obj):
+            new_peer = peer.Peer(int(self.torrent.number_of_pieces), sock_addr.ip, sock_addr.port)
+            if not new_peer.connect():
+                return
+            obj.connected_peers[new_peer.__hash__()] = new_peer
+            print('Connected to %d/%d peers' % (len(obj.connected_peers), MAX_PEERS_CONNECTED))
+
+        threads = []
+
         for _, sock_addr in self.dict_sock_addr.items():
             if len(self.connected_peers) >= MAX_PEERS_CONNECTED:
                 break
+            t = Thread(target=task, args=(self,))
+            threads.append(t)
+            t.start()
 
-            new_peer = peer.Peer(int(self.torrent.number_of_pieces), sock_addr.ip, sock_addr.port)
-            if not new_peer.connect():
-                continue
+        for t in threads:
+             t.join()
 
-            print('Connected to %d/%d peers' % (len(self.connected_peers), MAX_PEERS_CONNECTED))
-
-            self.connected_peers[new_peer.__hash__()] = new_peer
+        logging.info("Finished connecting to peers")
 
     def http_scraper(self, torrent, tracker):
         params = {
@@ -111,6 +123,11 @@ class Tracker(object):
                 for p in list_peers['peers']:
                     s = SockAddr(p['ip'], p['port'])
                     self.dict_sock_addr[s.__hash__()] = s
+
+            logging.info("---------------------------------------")
+            logging.info(f"Got {len(list_peers.values())} peers from tracker: {tracker}")
+            logging.info("All peers: %d" % len(self.dict_sock_addr))
+            logging.info("---------------------------------------")
 
         except Exception as e:
             logging.exception("HTTP scraping failed: %s" % e.__str__())
@@ -152,7 +169,10 @@ class Tracker(object):
             if sock_addr.__hash__() not in self.dict_sock_addr:
                 self.dict_sock_addr[sock_addr.__hash__()] = sock_addr
 
-        print("Got %d peers" % len(self.dict_sock_addr))
+        logging.info("---------------------------------------")
+        logging.info(f"Got {len(tracker_announce_output.list_sock_addr)} peers from tracker: {announce}")
+        logging.info("All peers: %d" % len(self.dict_sock_addr))
+        logging.info("---------------------------------------")
 
     def send_message(self, conn, sock, tracker_message):
         message = tracker_message.to_bytes()
