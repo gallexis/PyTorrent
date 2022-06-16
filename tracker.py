@@ -89,7 +89,7 @@ class Tracker(object):
             answer_tracker = requests.get(tracker, params=params, timeout=5)
             list_peers = bdecode(answer_tracker.content)
             offset=0
-            if not type(list_peers['peers']) == dict:
+            if not type(list_peers['peers']) == list:
                 '''
                     - Handles bytes form of list of peers
                     - IP address in bytes form:
