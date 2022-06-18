@@ -10,6 +10,7 @@ import tracker
 import logging
 import os
 import message
+import sys
 
 
 class Run(object):
@@ -17,7 +18,7 @@ class Run(object):
     last_log_line = ""
 
     def __init__(self):
-        self.torrent = torrent.Torrent().load_from_path("torrent.torrent")
+        self.torrent = torrent.Torrent().load_from_path(os.path.join('torrents', sys.argv[1]))
         self.tracker = tracker.Tracker(self.torrent)
 
         self.pieces_manager = pieces_manager.PiecesManager(self.torrent)
@@ -92,11 +93,13 @@ class Run(object):
 
     def _exit_threads(self):
         self.peers_manager.is_active = False
+        logging.info(f"Downloading finished in: {time.time() - start_time} seconds")
         os._exit(0)
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
 
+    start_time = time.time()
     run = Run()
     run.start()
