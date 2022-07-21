@@ -1,3 +1,4 @@
+import sys
 from block import State
 
 __author__ = 'alexisgallepe'
@@ -17,7 +18,12 @@ class Run(object):
     last_log_line = ""
 
     def __init__(self):
-        self.torrent = torrent.Torrent().load_from_path("torrent.torrent")
+        try:
+            torrent_file = sys.argv[1]
+        except IndexError:
+            logging.error("No torrent file provided!")
+            sys.exit(0)
+        self.torrent = torrent.Torrent().load_from_path(torrent_file)
         self.tracker = tracker.Tracker(self.torrent)
 
         self.pieces_manager = pieces_manager.PiecesManager(self.torrent)
