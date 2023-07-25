@@ -1,8 +1,8 @@
 
-# PyTorrent - Python BitTorrent
+# PyTorrent
 
 
-PyTorrent is a CLI tool that downloads files from the BitTorrent network.
+PyTorrent is a CLI tool that downloads files from the **BitTorrent** network.
 
 I wanted to make my own functional and straightforward program to learn how does BitTorrent protocol work and improve my python skills.
 
